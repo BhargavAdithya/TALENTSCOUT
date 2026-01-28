@@ -385,7 +385,7 @@ components.html(
     scrolling=False
 )
 
-# Fill the entire viewport and hide sidebar
+# Fill the entire viewport and hide sidebar and menu
 st.markdown(
     """
     <style>
@@ -407,6 +407,19 @@ st.markdown(
         }
         
         button[kind="header"] {
+            display: none !important;
+        }
+        
+        /* Hide the three-dot menu */
+        [data-testid="stHeader"] {
+            display: none !important;
+        }
+        
+        [data-testid="stToolbar"] {
+            display: none !important;
+        }
+        
+        #MainMenu {
             display: none !important;
         }
         

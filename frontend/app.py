@@ -17,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# UNIVERSAL SIDEBAR TOGGLE HIDER
+# UNIVERSAL SIDEBAR TOGGLE HIDER AND MENU HIDER
 st.markdown(
     """
     <style>
@@ -39,6 +39,34 @@ st.markdown(
         }
         
         button[kind="header"] {
+            display: none !important;
+        }
+        
+        /* Hide the three-dot menu (hamburger menu) */
+        [data-testid="stHeader"] button[kind="header"] {
+            display: none !important;
+        }
+        
+        [data-testid="stHeader"] > div > div > button {
+            display: none !important;
+        }
+        
+        /* Hide all header buttons */
+        header button {
+            display: none !important;
+        }
+        
+        /* Hide streamlit menu */
+        #MainMenu {
+            display: none !important;
+        }
+        
+        /* Hide the entire header toolbar */
+        [data-testid="stToolbar"] {
+            display: none !important;
+        }
+        
+        header[data-testid="stHeader"] {
             display: none !important;
         }
     </style>

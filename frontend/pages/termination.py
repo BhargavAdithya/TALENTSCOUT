@@ -110,7 +110,7 @@ components.html(
     height=0
 )
 
-# Hide sidebar
+# Hide sidebar and three-dot menu
 st.markdown(
     """
     <style>
@@ -132,6 +132,19 @@ st.markdown(
         }
         
         button[kind="header"] {
+            display: none !important;
+        }
+        
+        /* Hide the three-dot menu */
+        [data-testid="stHeader"] {
+            display: none !important;
+        }
+        
+        [data-testid="stToolbar"] {
+            display: none !important;
+        }
+        
+        #MainMenu {
             display: none !important;
         }
     </style>
