@@ -7,7 +7,7 @@ load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_API_URL = os.getenv("GROQ_API_URL", "https://api.groq.com/openai/v1/chat/completions")
-MODEL_NAME = os.getenv("MODEL_NAME", "llama3-8b-8192")
+MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-70b-versatile")
 
 # Headers for Groq API
 HEADERS = {
