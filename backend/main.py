@@ -37,22 +37,39 @@ INTERVIEWS = {}
 INTERVIEW_ID = 1
 OTP_STORE = {}  # Store OTPs with expiration
 
-# Email configuration
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
+# Email configuration (Brevo SMTP)
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp-relay.brevo.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_LOGIN = os.getenv("SMTP_LOGIN")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL")
 SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
 
 # Validate that credentials are loaded
-if not SENDER_EMAIL or not SENDER_PASSWORD:
-    print("⚠️ WARNING: Email credentials not found in environment variables!")
+if not SMTP_LOGIN or not SENDER_PASSWORD or not SENDER_EMAIL:
+    print("⚠️ WARNING: Brevo SMTP credentials not found in environment variables!")
     print("Please create a .env file in the backend directory with:")
+    print("SMTP_SERVER=smtp-relay.brevo.com")
+    print("SMTP_PORT=587")
+    print("SMTP_LOGIN=your-smtp-login")
     print("SENDER_EMAIL=your-email@gmail.com")
-    print("SENDER_PASSWORD=your-app-password")
+    print("SENDER_PASSWORD=your-brevo-smtp-key")
 
 def send_otp_email(recipient_email, otp):
-    """Send OTP via email"""
+    """Send OTP via email using Brevo SMTP"""
     try:
+        # Verify credentials are loaded
+        if not SMTP_LOGIN or not SENDER_PASSWORD or not SENDER_EMAIL:
+            print(f"❌ CRITICAL: Brevo SMTP credentials not found!")
+            print(f"SMTP_LOGIN: {SMTP_LOGIN}")
+            print(f"SENDER_EMAIL: {SENDER_EMAIL}")
+            print(f"SENDER_PASSWORD: {'*' * len(SENDER_PASSWORD) if SENDER_PASSWORD else 'None'}")
+            return False
+        
+        print(f"📧 Attempting to send OTP to {recipient_email} using Brevo SMTP")
+        print(f"📤 Using sender: {SENDER_EMAIL}")
+        print(f"🔌 SMTP Server: {SMTP_SERVER}:{SMTP_PORT}")
+        print(f"🔑 SMTP Login: {SMTP_LOGIN}")
+        
         message = MIMEMultipart("alternative")
         message["Subject"] = "TalentScout Interview - Email Verification OTP"
         message["From"] = SENDER_EMAIL
@@ -79,18 +96,28 @@ def send_otp_email(recipient_email, otp):
         part = MIMEText(html, "html")
         message.attach(part)
 
+        print(f"🔌 Connecting to {SMTP_SERVER}:{SMTP_PORT}...")
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
+            print(f"🔐 Starting TLS...")
             server.starttls()
-            server.login(SENDER_EMAIL, SENDER_PASSWORD)
+            print(f"🔑 Logging in with {SMTP_LOGIN}...")
+            server.login(SMTP_LOGIN, SENDER_PASSWORD)
+            print(f"📨 Sending email from {SENDER_EMAIL} to {recipient_email}...")
             server.sendmail(SENDER_EMAIL, recipient_email, message.as_string())
         
         print(f"✅ Email sent successfully to {recipient_email}")
         return True
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"❌ SMTP Authentication Error: {e}")
+        print(f"   Check if SMTP_LOGIN and SENDER_PASSWORD are correct")
+        return False
     except smtplib.SMTPException as e:
         print(f"❌ SMTP Error sending email: {e}")
         return False
     except Exception as e:
         print(f"❌ Error sending email: {e}")
+        import traceback
+        traceback.print_exc()
         return False
     
 @app.get("/")
