@@ -3,12 +3,48 @@ import requests
 import re
 import os
 from dotenv import load_dotenv
-
 load_dotenv()
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
-MODEL_NAME = os.getenv("MODEL_NAME", "llama3")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_API_URL = os.getenv("GROQ_API_URL", "https://api.groq.com/openai/v1/chat/completions")
+MODEL_NAME = os.getenv("MODEL_NAME", "llama3-8b-8192")
 
+# Headers for Groq API
+HEADERS = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {GROQ_API_KEY}"
+}
+
+def call_groq_api(prompt: str, timeout: int = 180) -> str:
+    """
+    Helper function to call Groq API with proper formatting
+    """
+    response = requests.post(
+        GROQ_API_URL,
+        headers=HEADERS,
+        json={
+            "model": MODEL_NAME,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "temperature": 0.7,
+            "max_tokens": 2000
+        },
+        timeout=timeout
+    )
+    
+    if response.status_code != 200:
+        raise RuntimeError(f"Groq API error: {response.status_code} - {response.text}")
+    
+    data = response.json()
+    
+    if "choices" not in data or len(data["choices"]) == 0:
+        raise RuntimeError(f"Groq returned no response: {data}")
+    
+    return data["choices"][0]["message"]["content"].strip()
 
 def ask_technical_question(tech_stack: str, difficulty: float, position: str = None, experience: float = None) -> str:
     """
@@ -68,22 +104,7 @@ Question requirements:
 Return ONLY the question text, nothing else.
 """
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": MODEL_NAME,
-            "prompt": prompt,
-            "stream": False
-        },
-        timeout=180
-    )
-
-    data = response.json()
-
-    if "response" not in data or not data["response"].strip():
-        raise RuntimeError(f"Ollama returned no response: {data}")
-
-    raw = data["response"].strip()
+    raw = call_groq_api(prompt, timeout=180)
 
     # If the model adds an intro ending with a colon, strip it
     if ":" in raw.split("\n", 1)[0]:
@@ -170,22 +191,7 @@ Question requirements:
 Return ONLY the question text, nothing else.
 """
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": MODEL_NAME,
-            "prompt": prompt,
-            "stream": False
-        },
-        timeout=180
-    )
-
-    data = response.json()
-
-    if "response" not in data or not data["response"].strip():
-        raise RuntimeError(f"Ollama returned no response: {data}")
-
-    raw = data["response"].strip()
+    raw = call_groq_api(prompt, timeout=180)
 
     # If the model adds an intro ending with a colon, strip it
     if ":" in raw.split("\n", 1)[0]:
@@ -271,22 +277,7 @@ Question requirements:
 Return ONLY the question text with the topic tag, nothing else.
 """
     
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": MODEL_NAME,
-            "prompt": prompt,
-            "stream": False
-        },
-        timeout=180
-    )
-    
-    data = response.json()
-    
-    if "response" not in data or not data["response"].strip():
-        raise RuntimeError(f"Ollama returned no response: {data}")
-    
-    raw = data["response"].strip()
+    raw = call_groq_api(prompt, timeout=180)
     
     # Extract topic if present
     topic_match = re.search(r'\[TOPIC:\s*([^\]]+)\]', raw)
@@ -365,17 +356,7 @@ Consider the difficulty level when scoring:
 - For difficulty 5 (senior): Expect deep expertise and optimization thinking
 """
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": MODEL_NAME,
-            "prompt": prompt,
-            "stream": False
-        },
-        timeout=180
-    )
-
-    raw = response.json()["response"].strip()
+    raw = call_groq_api(prompt, timeout=180)
     
     # Clean up response - remove markdown code blocks if present
     raw = re.sub(r'```json\s*|\s*```', '', raw).strip()
@@ -467,17 +448,7 @@ Where rating is a decimal between 0.0 and 5.0:
 - 4.5-5.0: Excellent performance, highly recommended
 """
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": MODEL_NAME,
-            "prompt": prompt,
-            "stream": False
-        },
-        timeout=180
-    )
-
-    raw = response.json()["response"].strip()
+    raw = call_groq_api(prompt, timeout=180)
     
     # Clean up response
     raw = re.sub(r'```json\s*|\s*```', '', raw).strip()
