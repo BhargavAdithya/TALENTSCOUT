@@ -20,7 +20,9 @@ from models import Base
 
 app = FastAPI(title="TalentScout Backend")
 
-Base.metadata.create_all(bind=engine)
+@app.on_event("startup")
+def on_startup():
+    Base.metadata.create_all(bind=engine)
 
 # Add CORS middleware to allow frontend requests
 app.add_middleware(
@@ -844,7 +846,3 @@ def cleanup_expired_otps():
 
 # Start cleanup thread
 threading.Thread(target=cleanup_expired_otps, daemon=True).start()
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
