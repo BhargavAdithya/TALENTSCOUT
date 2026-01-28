@@ -149,7 +149,7 @@ if st.session_state.get("interview_id"):
     try:
         import requests
         status_response = requests.get(
-            f"http://127.0.0.1:8000/status/{st.session_state.interview_id}",
+            f"https://talentscout-backend-c504.onrender.com/status/{st.session_state.interview_id}",
             timeout=5
         ).json()
         

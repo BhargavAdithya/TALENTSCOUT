@@ -161,7 +161,7 @@ if "terminated_duplicate" not in st.session_state:
 # ============================================
 # BACKEND CONFIGURATION
 # ============================================
-BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
+BACKEND_URL = os.getenv("BACKEND_URL", "https://talentscout-backend-c504.onrender.com")
 QUESTION_TIME_LIMIT = 180
 
 # ============================================
@@ -863,7 +863,7 @@ if st.session_state.get("permissions_granted"):
                     }}
                     
                     try {{
-                        const response = await fetch(`http://127.0.0.1:8000/violation/${{INTERVIEW_ID}}`, {{
+                        const response = await fetch(`https://talentscout-backend-c504.onrender.com/violation/${{INTERVIEW_ID}}`, {{
                             method: 'POST',
                             headers: {{'Content-Type': 'application/json'}},
                             body: JSON.stringify({{type: type}})
