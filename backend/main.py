@@ -1,10 +1,7 @@
 # backend/main.py
 import os
 from dotenv import load_dotenv
-
-# Load environment variables
 load_dotenv()
-
 import interview
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
