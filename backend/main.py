@@ -12,9 +12,8 @@ from llm import ask_technical_question, evaluate_answer
 import threading
 import time
 import random
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
 from database import engine
 from models import Base
 
@@ -37,45 +36,33 @@ INTERVIEWS = {}
 INTERVIEW_ID = 1
 OTP_STORE = {}  # Store OTPs with expiration
 
-# Email configuration (Brevo SMTP)
-SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp-relay.brevo.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_LOGIN = os.getenv("SMTP_LOGIN")
+# Email configuration (Brevo API)
+BREVO_API_KEY = os.getenv("BREVO_API_KEY")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL")
-SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
+SENDER_NAME = os.getenv("SENDER_NAME", "TalentScout")
 
 # Validate that credentials are loaded
-if not SMTP_LOGIN or not SENDER_PASSWORD or not SENDER_EMAIL:
-    print("⚠️ WARNING: Brevo SMTP credentials not found in environment variables!")
+if not BREVO_API_KEY or not SENDER_EMAIL:
+    print("⚠️ WARNING: Brevo API credentials not found in environment variables!")
     print("Please create a .env file in the backend directory with:")
-    print("SMTP_SERVER=smtp-relay.brevo.com")
-    print("SMTP_PORT=587")
-    print("SMTP_LOGIN=your-smtp-login")
+    print("BREVO_API_KEY=your-brevo-api-key")
     print("SENDER_EMAIL=your-email@gmail.com")
-    print("SENDER_PASSWORD=your-brevo-smtp-key")
+    print("SENDER_NAME=TalentScout")
+
+# Configure Brevo API
+configuration = sib_api_v3_sdk.Configuration()
+configuration.api_key['api-key'] = BREVO_API_KEY
+api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
+
+print(f"✅ Brevo API configured with sender: {SENDER_EMAIL}")
 
 def send_otp_email(recipient_email, otp):
-    """Send OTP via email using Brevo SMTP"""
+    """Send OTP via email using Brevo API"""
     try:
-        # Verify credentials are loaded
-        if not SMTP_LOGIN or not SENDER_PASSWORD or not SENDER_EMAIL:
-            print(f"❌ CRITICAL: Brevo SMTP credentials not found!")
-            print(f"SMTP_LOGIN: {SMTP_LOGIN}")
-            print(f"SENDER_EMAIL: {SENDER_EMAIL}")
-            print(f"SENDER_PASSWORD: {'*' * len(SENDER_PASSWORD) if SENDER_PASSWORD else 'None'}")
-            return False
-        
-        print(f"📧 Attempting to send OTP to {recipient_email} using Brevo SMTP")
+        print(f"📧 Attempting to send OTP to {recipient_email} using Brevo API")
         print(f"📤 Using sender: {SENDER_EMAIL}")
-        print(f"🔌 SMTP Server: {SMTP_SERVER}:{SMTP_PORT}")
-        print(f"🔑 SMTP Login: {SMTP_LOGIN}")
         
-        message = MIMEMultipart("alternative")
-        message["Subject"] = "TalentScout Interview - Email Verification OTP"
-        message["From"] = SENDER_EMAIL
-        message["To"] = recipient_email
-
-        html = f"""
+        html_content = f"""
         <html>
           <body style="font-family: Arial, sans-serif; padding: 20px;">
             <div style="max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 30px; border-radius: 10px;">
@@ -92,27 +79,31 @@ def send_otp_email(recipient_email, otp):
           </body>
         </html>
         """
-
-        part = MIMEText(html, "html")
-        message.attach(part)
-
-        print(f"🔌 Connecting to {SMTP_SERVER}:{SMTP_PORT}...")
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
-            print(f"🔐 Starting TLS...")
-            server.starttls()
-            print(f"🔑 Logging in with {SMTP_LOGIN}...")
-            server.login(SMTP_LOGIN, SENDER_PASSWORD)
-            print(f"📨 Sending email from {SENDER_EMAIL} to {recipient_email}...")
-            server.sendmail(SENDER_EMAIL, recipient_email, message.as_string())
+        
+        # Create email object
+        sender = {"name": SENDER_NAME, "email": SENDER_EMAIL}
+        to = [{"email": recipient_email}]
+        
+        send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+            to=to,
+            sender=sender,
+            subject="TalentScout Interview - Email Verification OTP",
+            html_content=html_content
+        )
+        
+        # Send email via Brevo API
+        print(f"🚀 Calling Brevo API...")
+        api_response = api_instance.send_transac_email(send_smtp_email)
         
         print(f"✅ Email sent successfully to {recipient_email}")
+        print(f"📬 Message ID: {api_response.message_id}")
         return True
-    except smtplib.SMTPAuthenticationError as e:
-        print(f"❌ SMTP Authentication Error: {e}")
-        print(f"   Check if SMTP_LOGIN and SENDER_PASSWORD are correct")
-        return False
-    except smtplib.SMTPException as e:
-        print(f"❌ SMTP Error sending email: {e}")
+        
+    except ApiException as e:
+        print(f"❌ Brevo API Exception: {e}")
+        print(f"   Status code: {e.status}")
+        print(f"   Reason: {e.reason}")
+        print(f"   Body: {e.body}")
         return False
     except Exception as e:
         print(f"❌ Error sending email: {e}")
