@@ -406,15 +406,17 @@ if st.session_state.get("permissions_granted"):
         """
         <script>
         (async function() {
-            await new Promise(r => setTimeout(r, 10));
+            await new Promise(r => setTimeout(r, 100));
             
             const video = window.parent.document.getElementById('camVideo');
             const monitor = window.parent.document.getElementById('cameraMonitor');
             
             if (!video || !monitor) {
-                console.error('Elements not found');
+                console.error('❌ Camera elements not found');
                 return;
             }
+            
+            console.log('🎥 Camera elements found, setting up...');
             
             // ===== SETUP DRAGGABLE (safe to re-attach) =====
             if (!monitor.draggableAttached) {
@@ -456,43 +458,60 @@ if st.session_state.get("permissions_granted"):
                 monitor.draggableAttached = true;
             }
             
-            // ===== RECONNECT TO EXISTING STREAM (NO FLICKER) =====
-            if (window.parent.globalCameraStream) {
-                // Stream already exists, just reconnect
-                const tracks = window.parent.globalCameraStream.getVideoTracks();
-                if (tracks.length > 0 && tracks[0].readyState === 'live') {
-                    video.srcObject = window.parent.globalCameraStream;
-                    if (video.paused) {
-                        video.play().catch(e => console.log('Play retry:', e));
-                    }
-                    console.log('✅ Reconnected to existing stream');
-                    return;
-                }
-            }
-            
-            // ===== INITIALIZE CAMERA (ONLY FIRST TIME) =====
-            if (!window.parent.cameraStreamInitialized) {
-                console.log('🎥 Initializing camera for first time');
-                window.parent.cameraStreamInitialized = true;
-                
+            // ===== GET OR CREATE CAMERA STREAM =====
+            async function setupCamera() {
                 try {
+                    // Check if we already have a working stream
+                    if (window.parent.globalCameraStream) {
+                        const tracks = window.parent.globalCameraStream.getVideoTracks();
+                        if (tracks.length > 0 && tracks[0].readyState === 'live') {
+                            console.log('✅ Using existing camera stream');
+                            video.srcObject = window.parent.globalCameraStream;
+                            
+                            // Force play
+                            try {
+                                await video.play();
+                                console.log('▶️ Video playing');
+                            } catch (e) {
+                                console.log('⚠️ Auto-play blocked, retrying...');
+                                setTimeout(() => video.play().catch(() => {}), 500);
+                            }
+                            return;
+                        }
+                    }
+                    
+                    // Request new camera stream
+                    console.log('🎥 Requesting new camera stream...');
                     const stream = await navigator.mediaDevices.getUserMedia({
                         video: { 
                             facingMode: "user",
                             width: { ideal: 1280 },
                             height: { ideal: 720 }
                         },
-                        audio: true
+                        audio: false
                     });
                     
+                    console.log('✅ Camera stream obtained');
                     video.srcObject = stream;
                     window.parent.globalCameraStream = stream;
-                    console.log('✅ Camera stream created');
+                    
+                    // Ensure video plays
+                    video.onloadedmetadata = async () => {
+                        try {
+                            await video.play();
+                            console.log('▶️ Video playing');
+                        } catch (e) {
+                            console.error('❌ Play error:', e);
+                        }
+                    };
+                    
                 } catch (error) {
                     console.error('❌ Camera error:', error);
-                    monitor.innerHTML = '<div style="color:white;padding:20px;text-align:center;font-size:14px;">Camera Error</div>';
+                    monitor.innerHTML = '<div style="color:white;padding:20px;text-align:center;font-size:14px;">Camera Error: ' + error.message + '</div>';
                 }
             }
+            
+            setupCamera();
         })();
         </script>
         """,
