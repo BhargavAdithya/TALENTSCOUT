@@ -6,6 +6,7 @@ import re
 import requests
 import json
 from datetime import datetime
+from utils import HIDE_MENU_CSS
 
 # -------------------------------------------------
 # Page config
@@ -17,62 +18,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# UNIVERSAL SIDEBAR TOGGLE HIDER AND MENU HIDER
-st.markdown(
-    """
-    <style>
-        /* Hide sidebar and all its controls */
-        [data-testid="collapsedControl"] {
-            display: none !important;
-        }
-        
-        section[data-testid="stSidebar"] > div:first-child {
-            display: none !important;
-        }
-        
-        section[data-testid="stSidebar"] {
-            display: none !important;
-        }
-        
-        .css-1dp5vir {
-            display: none !important;
-        }
-        
-        button[kind="header"] {
-            display: none !important;
-        }
-        
-        /* Hide the three-dot menu (hamburger menu) */
-        [data-testid="stHeader"] button[kind="header"] {
-            display: none !important;
-        }
-        
-        [data-testid="stHeader"] > div > div > button {
-            display: none !important;
-        }
-        
-        /* Hide all header buttons */
-        header button {
-            display: none !important;
-        }
-        
-        /* Hide streamlit menu */
-        #MainMenu {
-            display: none !important;
-        }
-        
-        /* Hide the entire header toolbar */
-        [data-testid="stToolbar"] {
-            display: none !important;
-        }
-        
-        header[data-testid="stHeader"] {
-            display: none !important;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown(HIDE_MENU_CSS, unsafe_allow_html=True)
 
 # -------------------------------------------------
 # Initialize session state

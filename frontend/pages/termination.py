@@ -1,6 +1,10 @@
 # frontend/pages/termination.py
 import streamlit as st
 import streamlit.components.v1 as components
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils import HIDE_MENU_CSS
 
 # ============================================
 # SET PAGE CONFIG (MUST BE FIRST)
@@ -110,47 +114,7 @@ components.html(
     height=0
 )
 
-# Hide sidebar and three-dot menu
-st.markdown(
-    """
-    <style>
-        /* Hide sidebar and all its controls */
-        [data-testid="collapsedControl"] {
-            display: none !important;
-        }
-        
-        section[data-testid="stSidebar"] > div:first-child {
-            display: none !important;
-        }
-        
-        section[data-testid="stSidebar"] {
-            display: none !important;
-        }
-        
-        .css-1dp5vir {
-            display: none !important;
-        }
-        
-        button[kind="header"] {
-            display: none !important;
-        }
-        
-        /* Hide the three-dot menu */
-        [data-testid="stHeader"] {
-            display: none !important;
-        }
-        
-        [data-testid="stToolbar"] {
-            display: none !important;
-        }
-        
-        #MainMenu {
-            display: none !important;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown(HIDE_MENU_CSS, unsafe_allow_html=True)
 
 # ============================================
 # CHECK TERMINATION REASON
