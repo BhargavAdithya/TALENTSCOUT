@@ -12,8 +12,6 @@ from llm import ask_technical_question, evaluate_answer
 import threading
 import time
 import random
-import sib_api_v3_sdk
-from sib_api_v3_sdk.rest import ApiException
 from database import engine
 from models import Base
 
@@ -35,81 +33,6 @@ app.add_middleware(
 INTERVIEWS = {}
 INTERVIEW_ID = 1
 OTP_STORE = {}  # Store OTPs with expiration
-
-# Email configuration (Brevo API)
-BREVO_API_KEY = os.getenv("BREVO_API_KEY")
-SENDER_EMAIL = os.getenv("SENDER_EMAIL")
-SENDER_NAME = os.getenv("SENDER_NAME", "TalentScout")
-
-# Validate that credentials are loaded
-if not BREVO_API_KEY or not SENDER_EMAIL:
-    print("⚠️ WARNING: Brevo API credentials not found in environment variables!")
-    print("Please create a .env file in the backend directory with:")
-    print("BREVO_API_KEY=your-brevo-api-key")
-    print("SENDER_EMAIL=your-email@gmail.com")
-    print("SENDER_NAME=TalentScout")
-
-# Configure Brevo API
-configuration = sib_api_v3_sdk.Configuration()
-configuration.api_key['api-key'] = BREVO_API_KEY
-api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
-
-print(f"✅ Brevo API configured with sender: {SENDER_EMAIL}")
-
-def send_otp_email(recipient_email, otp):
-    """Send OTP via email using Brevo API"""
-    try:
-        print(f"📧 Attempting to send OTP to {recipient_email} using Brevo API")
-        print(f"📤 Using sender: {SENDER_EMAIL}")
-        
-        html_content = f"""
-        <html>
-          <body style="font-family: Arial, sans-serif; padding: 20px;">
-            <div style="max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 30px; border-radius: 10px;">
-              <h2 style="color: #667eea; text-align: center;">🚀 TalentScout Interview</h2>
-              <p style="font-size: 16px; color: #333;">Your email verification OTP is:</p>
-              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; border-radius: 8px; letter-spacing: 8px; margin: 20px 0;">
-                {otp}
-              </div>
-              <p style="font-size: 14px; color: #666; margin-top: 20px;">⏱️ This OTP will expire in <strong>2 minutes</strong>.</p>
-              <p style="font-size: 14px; color: #666;">If you didn't request this, please ignore this email.</p>
-              <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
-              <p style="font-size: 12px; color: #999; text-align: center;">© 2025 TalentScout - AI-Powered Hiring Assistant</p>
-            </div>
-          </body>
-        </html>
-        """
-        
-        # Create email object
-        sender = {"name": SENDER_NAME, "email": SENDER_EMAIL}
-        to = [{"email": recipient_email}]
-        
-        send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
-            to=to,
-            sender=sender,
-            subject="TalentScout Interview - Email Verification OTP",
-            html_content=html_content
-        )
-        
-        # Send email via Brevo API
-        print(f"🚀 Calling Brevo API...")
-        api_response = api_instance.send_transac_email(send_smtp_email)
-        
-        print(f"✅ Email sent successfully to {recipient_email}")
-        print(f"📬 Message ID: {api_response.message_id}")
-        return True
-        
-    except ApiException as e:
-        print(f"❌ Brevo API Exception: {e}")
-        print(f"   Status code: {e.status}")
-        print(f"   Reason: {e.reason}")
-        print(f"   Body: {e.body}")
-        return False
-    except Exception as e:
-        print(f"❌ Error sending email: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
     
 @app.get("/")
 def root():
@@ -319,70 +242,6 @@ def monitor_timer(interview_id: int):
                 daemon=True
             ).start()
             break
-
-
-# =========================
-# OTP ENDPOINTS
-# =========================
-@app.post("/send-otp/email/{email}")
-def send_email_otp(email: str):
-    """Generate and send OTP to email"""
-    otp = str(random.randint(100000, 999999))
-    expiry = datetime.utcnow() + timedelta(minutes=2)
-    
-    # Store OTP immediately
-    OTP_STORE[f"email_{email}"] = {
-        "otp": otp,
-        "expiry": expiry,
-        "type": "email"
-    }
-    
-    print(f"📧 Generated OTP for {email}: {otp} (expires at {expiry})")
-    
-    # Send email in background thread to avoid timeout
-    def send_in_background():
-        try:
-            success = send_otp_email(email, otp)
-            if success:
-                print(f"✅ OTP sent successfully to {email}")
-            else:
-                print(f"⚠️ Failed to send OTP to {email}")
-        except Exception as e:
-            print(f"❌ Background email send failed: {e}")
-    
-    threading.Thread(target=send_in_background, daemon=True).start()
-    
-    return {
-        "success": True,
-        "message": "OTP is being sent to your email",
-        "expiry_seconds": 120
-    }
-
-@app.post("/verify-otp/email/{email}/{otp}")
-def verify_email_otp(email: str, otp: str):
-    """Verify email OTP"""
-    key = f"email_{email}"
-    
-    print(f"🔐 Verifying OTP for {email}: {otp}")
-    
-    if key not in OTP_STORE:
-        print(f"❌ No OTP found for {email}")
-        return {"verified": False, "message": "No OTP found. Please request a new one."}
-    
-    stored_otp = OTP_STORE[key]
-    
-    if datetime.utcnow() > stored_otp["expiry"]:
-        del OTP_STORE[key]
-        print(f"⏰ OTP expired for {email}")
-        return {"verified": False, "message": "OTP expired. Please request a new one."}
-    
-    if stored_otp["otp"] == otp:
-        del OTP_STORE[key]
-        print(f"✅ OTP verified successfully for {email}")
-        return {"verified": True, "message": "Email verified successfully!"}
-    
-    print(f"❌ Invalid OTP for {email}. Expected: {stored_otp['otp']}, Got: {otp}")
-    return {"verified": False, "message": "Invalid OTP. Please try again."}
 
 @app.post("/check-duplicate")
 def check_duplicate(data: dict):
@@ -845,22 +704,3 @@ def update_fullscreen_status(interview_id: int, is_fullscreen: bool):
         "fullscreen_active": is_fullscreen,
         "message": "Fullscreen status updated"
     }
-
-
-# Cleanup old OTPs periodically (optional)
-def cleanup_expired_otps():
-    """Background task to clean up expired OTPs"""
-    while True:
-        time.sleep(60)  # Run every minute
-        current_time = datetime.utcnow()
-        expired_keys = [
-            key for key, data in OTP_STORE.items()
-            if current_time > data["expiry"]
-        ]
-        for key in expired_keys:
-            del OTP_STORE[key]
-        if expired_keys:
-            print(f"🧹 Cleaned up {len(expired_keys)} expired OTPs")
-
-# Start cleanup thread
-threading.Thread(target=cleanup_expired_otps, daemon=True).start()

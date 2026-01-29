@@ -116,32 +116,11 @@ if "pending_user_input" not in st.session_state:
 if "timeout_detected" not in st.session_state:
     st.session_state.timeout_detected = False
 
-if "email_verified" not in st.session_state:
-    st.session_state.email_verified = False
-
-if "otp_sent_email" not in st.session_state:
-    st.session_state.otp_sent_email = False
-
-if "waiting_for_otp_email" not in st.session_state:
-    st.session_state.waiting_for_otp_email = False
-
 if "violation_count" not in st.session_state:
     st.session_state.violation_count = 0
 
 if "interview_completed_id" not in st.session_state:
     st.session_state.interview_completed_id = None
-
-if "otp_email_boxes" not in st.session_state:
-    st.session_state.otp_email_boxes = ["", "", "", "", "", ""]
-
-if "otp_email_timestamp" not in st.session_state:
-    st.session_state.otp_email_timestamp = None
-
-if "temp_email" not in st.session_state:
-    st.session_state.temp_email = None
-
-if "otp_email_expired" not in st.session_state:
-    st.session_state.otp_email_expired = False
 
 if "email_duplicate_attempts" not in st.session_state:
     st.session_state.email_duplicate_attempts = 0
@@ -1185,145 +1164,6 @@ for i, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"], unsafe_allow_html=True)
 
-# EMAIL OTP Display
-if (st.session_state.waiting_for_otp_email and 
-    st.session_state.otp_sent_email and 
-    not st.session_state.email_verified and
-    st.session_state.pending_user_input is None):
-    
-    if st.session_state.otp_email_timestamp:
-        elapsed = (datetime.now() - st.session_state.otp_email_timestamp).total_seconds()
-        remaining_time = max(0, 120 - int(elapsed))
-        
-        if remaining_time == 0 and not st.session_state.otp_email_expired:
-            st.session_state.otp_email_expired = True
-            st.session_state.waiting_for_otp_email = False
-            st.session_state.otp_sent_email = False
-            st.session_state.otp_email_timestamp = None
-            st.session_state.temp_email = None
-            msg = "⏰ <b>OTP Expired!</b><br><br>The time for entering the OTP has expired. Please re-enter your email address to send a new verification code. 📧"
-            st.session_state.messages.append({"role": "assistant", "content": msg})
-            st.rerun()
-    else:
-        remaining_time = 120
-    
-    if st.session_state.otp_email_expired:
-        st.stop()
-    
-    if remaining_time > 0:
-        temp_email_display = st.session_state.temp_email if st.session_state.temp_email else ""
-        components.html(
-            f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>
-                    * {{
-                        margin: 0;
-                        padding: 0;
-                        box-sizing: border-box;
-                    }}
-                    
-                    body {{
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                        padding: 20px;
-                    }}
-                    
-                    .otp-container {{
-                        background: white;
-                        padding: 30px;
-                        border-radius: 16px;
-                        max-width: 500px;
-                        margin: 0 auto;
-                        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-                    }}
-                    
-                    h3 {{
-                        color: #667eea;
-                        text-align: center;
-                        margin-bottom: 20px;
-                        font-size: 1.5rem;
-                    }}
-                    
-                    .email-text {{
-                        text-align: center;
-                        color: #64748b;
-                        margin-bottom: 10px;
-                        font-size: 0.95rem;
-                    }}
-                    
-                    .email-text strong {{
-                        color: #334155;
-                    }}
-                    
-                    #timer-display {{
-                        text-align: center;
-                        margin-bottom: 20px;
-                    }}
-                    
-                    #timer-text {{
-                        font-size: 1.5rem;
-                        font-weight: bold;
-                        color: #667eea;
-                    }}
-                    
-                    .instruction-text {{
-                        text-align: center;
-                        color: #9333ea;
-                        font-size: 0.95rem;
-                        margin-bottom: 15px;
-                        font-weight: 600;
-                    }}
-                </style>
-            </head>
-            <body>
-                <div class="otp-container">
-                    <h3>📧 Email Verification</h3>
-                    <p class="email-text">
-                        Enter the 6-digit OTP sent to <strong>{temp_email_display}</strong>
-                    </p>
-                    <div id="timer-display">
-                        <span id="timer-text">⏱️ {remaining_time // 60}:{remaining_time % 60:02d}</span>
-                    </div>
-                    <p class="instruction-text">
-                        👇 Enter OTP below in the chat input box to verify
-                    </p>
-                </div>
-                
-                <script>
-                let startTime = {remaining_time};
-                let timerInterval;
-                let expired = false;
-                
-                function updateTimer() {{
-                    if (expired) return;
-                    startTime--;
-                    const minutes = Math.floor(startTime / 60);
-                    const seconds = startTime % 60;
-                    const timerText = document.getElementById('timer-text');
-                    
-                    if (startTime < 30) {{
-                        timerText.style.color = '#dc2626';
-                    }}
-                    
-                    timerText.textContent = `⏱️ ${{minutes}}:${{seconds.toString().padStart(2, '0')}}`;
-                    
-                    if (startTime <= 0) {{
-                        clearInterval(timerInterval);
-                        expired = true;
-                        window.parent.postMessage({{type: 'otp_expired'}}, '*');
-                    }}
-                }}
-                
-                timerInterval = setInterval(updateTimer, 1000);
-                </script>
-            </body>
-            </html>
-            """,
-            height=250
-        )
-        st.markdown("⬇️ **Please enter the 6-digit OTP in the chat input box below to verify your email.**", unsafe_allow_html=True)
-
 # Display timer for technical questions
 if (st.session_state.stage == "tech" and 
     st.session_state.interview_id and 
@@ -1577,41 +1417,30 @@ if st.session_state.pending_user_input is not None:
 
         # EMAIL VALIDATION
         if st.session_state.current_q == 1:
-            if st.session_state.waiting_for_otp_email:
-                otp = user_input.strip()
-                if len(otp) != 6 or not otp.isdigit():
-                    msg = "Please enter a valid 6-digit OTP. 🔢"
-                    st.session_state.messages.append({"role": "assistant", "content": msg})
-                    st.rerun()
+            # Show spinner immediately
+            with st.spinner("✨ TalentScout is reviewing your response..."):
+                time.sleep(0.5)  # Small delay for spinner to appear
                 
-                with st.spinner("🔐 Validating OTP, please wait..."):
-                    time.sleep(5.0)
-                    try:
-                        verify_response = requests.post(
-                            f"{BACKEND_URL}/verify-otp/email/{st.session_state.temp_email}/{otp}",
-                            timeout=10
-                        ).json()
-                        
-                        if verify_response["verified"]:
-                            time.sleep(0.8)
-                            st.session_state.email_verified = True
-                            st.session_state.waiting_for_otp_email = False
-                            st.session_state.otp_sent_email = False
-                            st.session_state.otp_email_expired = False
-                            st.session_state.otp_email_timestamp = None
-                            st.session_state.answers[QUESTIONS[1]] = st.session_state.temp_email
-                        else:
-                            msg = f"❌ {verify_response['message']}"
-                            st.session_state.messages.append({"role": "assistant", "content": msg})
-                            st.rerun()
-                    except Exception as e:
-                        msg = f"❌ Error verifying OTP: {str(e)}"
-                        st.session_state.messages.append({"role": "assistant", "content": msg})
-                        st.rerun()
-            else:
-                email = user_input.strip()
-                email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$'
-                if not re.match(email_pattern, email):
+                email = user_input.strip().lower()
+                
+                # Enhanced email validation pattern
+                email_pattern = r'^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$'
+                
+                # Additional validation checks
+                is_valid_email = (
+                    re.match(email_pattern, email) and
+                    len(email) >= 6 and  # Minimum realistic email length
+                    len(email) <= 254 and  # RFC 5321 maximum
+                    '..' not in email and  # No consecutive dots
+                    not email.startswith('.') and
+                    not email.endswith('.') and
+                    '@' in email and
+                    email.count('@') == 1 and  # Exactly one @
+                    len(email.split('@')[0]) > 0 and  # Local part not empty
+                    len(email.split('@')[1]) > 3  # Domain at least x.xx
+                )
+                
+                if not is_valid_email:
                     msg = "Please enter a valid email address. Example: john.doe@example.com 📧"
                     st.session_state.messages.append({"role": "assistant", "content": msg})
                     st.rerun()
@@ -1633,10 +1462,7 @@ if st.session_state.pending_user_input is not None:
                             st.switch_page("pages/termination.py")
                             st.stop()
                         else:
-                            # Show warning modal and ask again
-                            st.session_state.show_duplicate_modal = True
-                            st.session_state.duplicate_field = "email"
-                            
+                            # Show warning and ask again
                             attempts = st.session_state.email_duplicate_attempts
                             remaining = 3 - attempts
                             
@@ -1652,80 +1478,62 @@ if st.session_state.pending_user_input is not None:
                             st.rerun()
                 except Exception as e:
                     print(f"⚠️ Duplicate check failed: {e}")
-
-                # If we reach here, email is unique - proceed with OTP  
-                st.session_state.temp_email = email
                 
-                with st.spinner("📧 Sending OTP to your email..."):
-                    time.sleep(2.5)
-                    try:
-                        otp_response = requests.post(
-                            f"{BACKEND_URL}/send-otp/email/{email}",
-                            timeout=10
-                        ).json()
-                        
-                        if otp_response["success"]:
-                            st.session_state.otp_sent_email = True
-                            st.session_state.waiting_for_otp_email = True
-                            st.session_state.otp_email_expired = False
-                            st.session_state.otp_email_timestamp = datetime.now()
-                            msg = f"📧 A 6-digit OTP has been sent to <b>{email}</b>.<br>Please enter the OTP within 2 minutes to verify your email."
-                            st.session_state.messages.append({"role": "assistant", "content": msg})
-                            st.rerun()
-                        else:
-                            msg = "❌ Failed to send OTP. Please try again."
-                            st.session_state.messages.append({"role": "assistant", "content": msg})
-                            st.rerun()
-                    except Exception as e:
-                        msg = f"❌ Error sending OTP: {str(e)}"
-                        st.session_state.messages.append({"role": "assistant", "content": msg})
-                        st.rerun()
+                # Email is valid and unique - save it directly
+                st.session_state.answers[QUESTIONS[1]] = email
+                time.sleep(1.5)  # Additional delay for spinner visibility
 
         # PHONE VALIDATION
         if st.session_state.current_q == 2:
-            phone = user_input.strip()
-            phone_clean = re.sub(r'[\s\-\(\)\+]', '', phone)
-            if not (phone_clean.isdigit() and 10 <= len(phone_clean) <= 15):
-                msg = "Please enter a valid phone number (10-15 digits). Example: +1234567890 or 1234567890 📱"
-                st.session_state.messages.append({"role": "assistant", "content": msg})
-                st.rerun()
-            
-            # Check for duplicate phone
-            try:
-                duplicate_check = requests.post(
-                    f"{BACKEND_URL}/check-duplicate",
-                    json={"phone": phone_clean},
-                    timeout=5
-                ).json()
+            # Show spinner immediately
+            with st.spinner("✨ TalentScout is reviewing your response..."):
+                time.sleep(0.5)  # Small delay for spinner to appear
                 
-                if duplicate_check.get("has_duplicates") and "phone" in duplicate_check.get("duplicates", []):
-                    st.session_state.phone_duplicate_attempts += 1
+                phone = user_input.strip()
+                phone_clean = re.sub(r'[\s\-\(\)\+]', '', phone)
+                
+                if not (phone_clean.isdigit() and 10 <= len(phone_clean) <= 15):
+                    msg = "Please enter a valid phone number (10-15 digits). Example: +1234567890 or 1234567890 📱"
+                    st.session_state.messages.append({"role": "assistant", "content": msg})
+                    st.rerun()
+                
+                # Check for duplicate phone
+                try:
+                    duplicate_check = requests.post(
+                        f"{BACKEND_URL}/check-duplicate",
+                        json={"phone": phone_clean},
+                        timeout=5
+                    ).json()
                     
-                    if st.session_state.phone_duplicate_attempts >= 3:
-                        # Terminate on 3rd attempt
-                        st.session_state.terminated_duplicate = True
-                        st.switch_page("pages/termination.py")
-                        st.stop()
-                    else:
-                        # Show warning and ask again
-                        attempts = st.session_state.phone_duplicate_attempts
-                        remaining = 3 - attempts
+                    if duplicate_check.get("has_duplicates") and "phone" in duplicate_check.get("duplicates", []):
+                        st.session_state.phone_duplicate_attempts += 1
                         
-                        msg = (
-                            f"<div class='assistant-box' style='background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #991b1b; border-left: 4px solid #dc2626;'>"
-                            f"⚠️ <b>Phone Number Already Used!</b><br><br>"
-                            f"This phone number is already registered in our system. Please enter a valid phone number.<br><br>"
-                            f"<b>Attempts: {attempts}/3 | Remaining warnings: {remaining}</b><br>"
-                            f"After 3 attempts, you will be blocked from continuing."
-                            f"</div>"
-                        )
-                        st.session_state.messages.append({"role": "assistant", "content": msg})
-                        st.rerun()
-            except Exception as e:
-                print(f"⚠️ Duplicate check failed: {e}")
+                        if st.session_state.phone_duplicate_attempts >= 3:
+                            # Terminate on 3rd attempt
+                            st.session_state.terminated_duplicate = True
+                            st.switch_page("pages/termination.py")
+                            st.stop()
+                        else:
+                            # Show warning and ask again
+                            attempts = st.session_state.phone_duplicate_attempts
+                            remaining = 3 - attempts
+                            
+                            msg = (
+                                f"<div class='assistant-box' style='background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #991b1b; border-left: 4px solid #dc2626;'>"
+                                f"⚠️ <b>Phone Number Already Used!</b><br><br>"
+                                f"This phone number is already registered in our system. Please enter a valid phone number.<br><br>"
+                                f"<b>Attempts: {attempts}/3 | Remaining warnings: {remaining}</b><br>"
+                                f"After 3 attempts, you will be blocked from continuing."
+                                f"</div>"
+                            )
+                            st.session_state.messages.append({"role": "assistant", "content": msg})
+                            st.rerun()
+                except Exception as e:
+                    print(f"⚠️ Duplicate check failed: {e}")
 
-            # If we reach here, phone is unique - proceed
-            st.session_state.answers[QUESTIONS[2]] = phone_clean
+                # If we reach here, phone is unique - proceed
+                st.session_state.answers[QUESTIONS[2]] = phone_clean
+                time.sleep(1.5)  # Additional delay for spinner visibility
 
         # EXPERIENCE VALIDATION
         if st.session_state.current_q == 3:
@@ -1786,17 +1594,15 @@ if st.session_state.pending_user_input is not None:
                 st.session_state.messages.append({"role": "assistant", "content": msg})
                 st.rerun()
 
-        skip_save = (st.session_state.current_q == 1 and not st.session_state.email_verified)
-        
-        if not skip_save and not st.session_state.waiting_for_otp_email:
-            if st.session_state.current_q != 1:
-                st.session_state.answers[question] = user_input
+        # Save the answer directly (email is now saved in its validation block)
+        if st.session_state.current_q != 1:
+            st.session_state.answers[question] = user_input
 
         time.sleep(0.2)
 
         ACK_MAP = {
             0: lambda val: f"Nice to meet you, <b>{val}</b>! Let's continue. ✨",
-            1: lambda val: f"Your email <b>{val}</b> is verified and saved successfully. ✅",
+            1: lambda val: f"Your email <b>{val}</b> is saved successfully. ✅",
             2: lambda val: f"Your phone number <b>{val}</b> is saved successfully. 📱",
             3: lambda _: "Thanks for sharing your experience. 💼",
             4: lambda _: "Great! Your specified role is saved. 🎯",
@@ -1804,15 +1610,7 @@ if st.session_state.pending_user_input is not None:
             6: lambda _: "Great, that gives me a good overview of your technical expertise. 🔧" 
         }
 
-        if st.session_state.current_q == 1:
-            if st.session_state.email_verified:
-                ack_value = st.session_state.temp_email
-            elif st.session_state.waiting_for_otp_email:
-                st.rerun()
-            else:
-                st.rerun()
-        else:
-            ack_value = user_input
+        ack_value = user_input
         
         ack = ACK_MAP[st.session_state.current_q](ack_value)
         st.session_state.current_q += 1
@@ -1837,8 +1635,10 @@ if st.session_state.pending_user_input is not None:
                 "</div>"
             )
 
-        with st.spinner("✨ TalentScout is reviewing your response..."):
-            time.sleep(2.0)
+        # Only show spinner for other questions (not email/phone which have their own)
+        if st.session_state.current_q not in [1, 2]:
+            with st.spinner("✨ TalentScout is reviewing your response..."):
+                time.sleep(2.0)
 
         st.session_state.messages.append({"role": "assistant", "content": response})
         st.rerun()

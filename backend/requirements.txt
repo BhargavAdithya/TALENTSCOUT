@@ -5,4 +5,3 @@ psycopg2-binary
 pydantic
 requests
 python-dotenv
-sib-api-v3-sdk
