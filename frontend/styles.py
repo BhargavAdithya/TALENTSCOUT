@@ -8,6 +8,46 @@ STYLES = """
 /* Global Styles */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* Prevent element fading during rerun - COMPREHENSIVE */
+.stChatInputContainer,
+.stChatInputContainer *,
+[data-testid="stChatInput"],
+[data-testid="stChatInput"] *,
+.timer-display,
+.stChatMessage,
+.stChatMessage *,
+[data-testid="stChatMessageContent"],
+[data-testid="stChatMessageContent"] *,
+.assistant-box,
+.question-box,
+.rule-box,
+#cameraMonitor,
+#camVideo,
+.block-container,
+.block-container *,
+.element-container,
+[data-testid="stVerticalBlock"],
+[data-testid="stHorizontalBlock"],
+.stMarkdown,
+.stMarkdown * {
+    opacity: 1 !important;
+    transition: none !important;
+}
+
+/* Specifically prevent spinner container from fading */
+.stSpinner,
+.stSpinner *,
+[data-testid="stSpinner"] {
+    opacity: 1 !important;
+    transition: none !important;
+}
+
+/* Keep input field fully visible during updates */
+.stChatInputContainer textarea {
+    opacity: 1 !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+}
+
 /* Force dark background everywhere - comprehensive */
 html,
 body,

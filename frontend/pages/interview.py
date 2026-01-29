@@ -1177,16 +1177,32 @@ if (st.session_state.stage == "tech" and
             st.session_state.timer_placeholder = st.empty()
         
         try:
-            timer_response = requests.get(f"{BACKEND_URL}/timer/{st.session_state.interview_id}", timeout=5).json()
+            timer_response = requests.get(
+                f"{BACKEND_URL}/timer/{st.session_state.interview_id}", 
+                timeout=2
+            ).json()
             remaining = timer_response.get("remaining", 0)
             timeout = timer_response.get("timeout", False)
             
-            if timeout:
+            print(f"⏱️ Timer check - Remaining: {remaining}s, Timeout flag: {timeout}")
+            
+            # CRITICAL: Trigger timeout when remaining hits 0
+            if remaining <= 0 or timeout:
+                print(f"🚨 TIMEOUT TRIGGERED - Remaining: {remaining}, Flag: {timeout}")
+                print(f"Current question count: {st.session_state.tech_q_count}")
+                print(f"Input locked: {st.session_state.input_locked}")
+                
+                # Clear timer display
                 st.session_state.timer_placeholder = None
-                st.session_state.input_locked = True
+                
+                # Set timeout detected flag
                 st.session_state.timeout_detected = True
+                st.session_state.input_locked = True
+                
+                print("🔄 Forcing rerun to handle timeout...")
                 st.rerun()
             
+            # Display timer only if time remaining
             if remaining > 0:
                 minutes = remaining // 60
                 seconds = remaining % 60
@@ -1208,6 +1224,7 @@ if (st.session_state.stage == "tech" and
                         unsafe_allow_html=True
                     )
         except Exception as e:
+            print(f"❌ Timer check error: {e}")
             pass
 
 # Initial greeting
@@ -1289,7 +1306,7 @@ else:
     st.chat_input("Processing... Please wait", disabled=True, key="disabled_input")
     user_input = None
 
-# Auto-refresh timer
+# Auto-refresh timer every 1 second during technical questions
 if (st.session_state.stage == "tech" and 
     st.session_state.interview_id and 
     st.session_state.current_tech_question and
@@ -1297,39 +1314,35 @@ if (st.session_state.stage == "tech" and
     not st.session_state.input_locked and
     not st.session_state.get("timeout_detected", False) and
     st.session_state.stage != "completed"):
-    time.sleep(1)
+    time.sleep(1)  # Changed from 2 to 1 second
     st.rerun()
 
 # HANDLE TIMEOUT
 if st.session_state.get("timeout_detected", False):
+    print(f"🔴 TIMEOUT HANDLER TRIGGERED - Question count: {st.session_state.tech_q_count}")
+    
+    # Clear timeout flag immediately
     st.session_state.timeout_detected = False
+    st.session_state.timer_placeholder = None
     
+    # Increment question count
     st.session_state.tech_q_count += 1
+    print(f"📊 Question count after increment: {st.session_state.tech_q_count}")
     
-    # Check if this was the last question
+    # Check if this was the last question (5th question)
     if st.session_state.tech_q_count >= 5:
-        with st.spinner("⏳ Processing your response..."):
-            # Submit timeout to backend
+        print("🏁 This was the LAST question - marking as completed")
+        
+        with st.spinner("⏳ Processing final response..."):
+            # Submit timeout answer
             backend_submit_answer(
                 st.session_state.interview_id,
                 st.session_state.current_tech_question,
                 "[AUTO-SUBMITTED: TIME EXPIRED]"
             )
-            
-            # Wait for backend to process
             time.sleep(3)
-            
-            # Check completion status
-            while True:
-                time.sleep(1)
-                res = requests.get(
-                    f"{BACKEND_URL}/next-question/{st.session_state.interview_id}",
-                    timeout=120
-                ).json()
-                
-                if res.get("completed"):
-                    break
         
+        # Force completion
         end_msg = (
             "<div class='assistant-box'>"
             "Thank you. This concludes the technical interview. ✅<br><br>"
@@ -1339,40 +1352,65 @@ if st.session_state.get("timeout_detected", False):
         st.session_state.messages.append({"role": "assistant", "content": end_msg})
         st.session_state.input_locked = False
         st.session_state.stage = "completed"
+        print("🎉 Stage set to completed, rerunning...")
         st.rerun()
     
-    # Not the last question - get next question
-    with st.spinner("⏳ Time's up! Loading next question..."):
-        # Submit timeout to backend
+    # Not the last question - show spinner and fetch next
+    print(f"➡️ Fetching next question (this is question {st.session_state.tech_q_count}/5)")
+    
+    with st.spinner("⏰ Time's up! Loading next question..."):
+        # Submit timeout answer
         backend_submit_answer(
             st.session_state.interview_id,
             st.session_state.current_tech_question,
             "[AUTO-SUBMITTED: TIME EXPIRED]"
         )
         
-        # Wait for next question
-        while True:
+        # Wait for next question with timeout
+        next_question = None
+        max_wait = 30
+        
+        for i in range(max_wait):
             time.sleep(2)
-            res = requests.get(
-                f"{BACKEND_URL}/next-question/{st.session_state.interview_id}",
-                timeout=120
-            ).json()
-            
-            if "question" in res:
-                st.session_state.current_tech_question = res["question"]
-                break
+            try:
+                res = requests.get(
+                    f"{BACKEND_URL}/next-question/{st.session_state.interview_id}",
+                    timeout=10
+                ).json()
+                
+                if "question" in res and res["question"]:
+                    next_question = res["question"]
+                    print(f"✅ Next question received after {(i+1)*2} seconds")
+                    break
+                    
+                status = res.get("status", "unknown")
+                print(f"🔍 Attempt {i+1}: Status = {status}")
+                
+            except Exception as e:
+                print(f"❌ Error on attempt {i+1}: {e}")
     
-    timeout_msg = (
-        "<div class='assistant-box' style='background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #991b1b;'>"
-        "⏰ Previous question was skipped as response was not submitted within the time limit. "
-        "Please answer the question before the timer ends to save the response."
-        "</div>\n\n"
-        f"<div class='question-box'>{st.session_state.current_tech_question}</div>"
-    )
-    
-    st.session_state.messages.append({"role": "assistant", "content": timeout_msg})
-    st.session_state.input_locked = False
-    st.rerun()
+    if next_question:
+        # Update current question
+        st.session_state.current_tech_question = next_question
+        
+        # Create timeout message
+        timeout_msg = (
+            "<div class='assistant-box' style='background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #991b1b;'>"
+            "⏰ Previous question was skipped as response was not submitted within the time limit. "
+            "Please answer the question before the timer ends to save the response."
+            "</div>\n\n"
+            f"<div class='question-box'>{next_question}</div>"
+        )
+        
+        st.session_state.messages.append({"role": "assistant", "content": timeout_msg})
+        st.session_state.input_locked = False
+        st.session_state.timer_placeholder = None
+        print("✅ Question updated, rerunning...")
+        st.rerun()
+    else:
+        print("❌ FAILED to get next question - forcing completion")
+        st.session_state.stage = "completed"
+        st.rerun()
 
 # INPUT HANDLING
 if user_input:
@@ -1401,49 +1439,55 @@ if st.session_state.pending_user_input is not None:
 
         # NAME VALIDATION
         if st.session_state.current_q == 0:
-            name = user_input.strip()
-            name_valid = (
-                len(name.split()) >= 2
-                and all(part.isalpha() for part in name.split())
-                and len(name) >= 3
-            )
-            if not name_valid:
-                msg = (
-                    "Please enter your full name (first and last name) using only letters. "
-                    "Example: John Doe"
+            # Show spinner immediately
+            with st.spinner("✨ TalentScout is reviewing your response..."):
+                time.sleep(1.5)  # Delay for spinner visibility
+                
+                name = user_input.strip()
+                name_valid = (
+                    len(name.split()) >= 2
+                    and all(part.isalpha() for part in name.split())
+                    and len(name) >= 3
                 )
-                st.session_state.messages.append({"role": "assistant", "content": msg})
-                st.rerun()
+                if not name_valid:
+                    msg = (
+                        "Please enter your full name (first and last name) using only letters. "
+                        "Example: John Doe"
+                    )
+                    st.session_state.messages.append({"role": "assistant", "content": msg})
+                    st.rerun()
 
         # EMAIL VALIDATION
         if st.session_state.current_q == 1:
+            email = user_input.strip().lower()
+            
+            # Enhanced email validation pattern
+            email_pattern = r'^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$'
+            
+            # Additional validation checks
+            is_valid_email = (
+                re.match(email_pattern, email) and
+                len(email) >= 6 and  # Minimum realistic email length
+                len(email) <= 254 and  # RFC 5321 maximum
+                '..' not in email and  # No consecutive dots
+                not email.startswith('.') and
+                not email.endswith('.') and
+                '@' in email and
+                email.count('@') == 1 and  # Exactly one @
+                len(email.split('@')[0]) > 0 and  # Local part not empty
+                len(email.split('@')[1]) > 3  # Domain at least x.xx
+            )
+            
             # Show spinner immediately
             with st.spinner("✨ TalentScout is reviewing your response..."):
-                time.sleep(0.5)  # Small delay for spinner to appear
-                
-                email = user_input.strip().lower()
-                
-                # Enhanced email validation pattern
-                email_pattern = r'^[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$'
-                
-                # Additional validation checks
-                is_valid_email = (
-                    re.match(email_pattern, email) and
-                    len(email) >= 6 and  # Minimum realistic email length
-                    len(email) <= 254 and  # RFC 5321 maximum
-                    '..' not in email and  # No consecutive dots
-                    not email.startswith('.') and
-                    not email.endswith('.') and
-                    '@' in email and
-                    email.count('@') == 1 and  # Exactly one @
-                    len(email.split('@')[0]) > 0 and  # Local part not empty
-                    len(email.split('@')[1]) > 3  # Domain at least x.xx
-                )
-                
                 if not is_valid_email:
+                    time.sleep(1.5)  # Delay for invalid email
                     msg = "Please enter a valid email address. Example: john.doe@example.com 📧"
                     st.session_state.messages.append({"role": "assistant", "content": msg})
                     st.rerun()
+                
+                # If valid, continue with duplicate check
+                time.sleep(0.5)  # Small delay for spinner to appear
                 
                 # Check for duplicate email
                 try:
@@ -1485,17 +1529,19 @@ if st.session_state.pending_user_input is not None:
 
         # PHONE VALIDATION
         if st.session_state.current_q == 2:
+            phone = user_input.strip()
+            phone_clean = re.sub(r'[\s\-\(\)\+]', '', phone)
+            
             # Show spinner immediately
             with st.spinner("✨ TalentScout is reviewing your response..."):
-                time.sleep(0.5)  # Small delay for spinner to appear
-                
-                phone = user_input.strip()
-                phone_clean = re.sub(r'[\s\-\(\)\+]', '', phone)
-                
                 if not (phone_clean.isdigit() and 10 <= len(phone_clean) <= 15):
+                    time.sleep(1.5)  # Delay for invalid phone
                     msg = "Please enter a valid phone number (10-15 digits). Example: +1234567890 or 1234567890 📱"
                     st.session_state.messages.append({"role": "assistant", "content": msg})
                     st.rerun()
+                
+                # If valid, continue with processing
+                time.sleep(0.5)  # Small delay for spinner to appear
                 
                 # Check for duplicate phone
                 try:
@@ -1537,47 +1583,56 @@ if st.session_state.pending_user_input is not None:
 
         # EXPERIENCE VALIDATION
         if st.session_state.current_q == 3:
-            try:
-                exp = float(user_input)
-                if exp < 0 or exp > 70:
-                    raise ValueError
-            except ValueError:
-                msg = (
-                    "I don't really understand that. "
-                    "Please enter your experience as a valid number (e.g., 0, 1, 2.5)."
-                )
-                st.session_state.messages.append({"role": "assistant", "content": msg})
-                st.rerun()
+            # Show spinner immediately
+            with st.spinner("✨ TalentScout is reviewing your response..."):
+                time.sleep(1.5)  # Delay for spinner visibility
+                
+                try:
+                    exp = float(user_input)
+                    if exp < 0 or exp > 70:
+                        raise ValueError
+                except ValueError:
+                    msg = (
+                        "I don't really understand that. "
+                        "Please enter your experience as a valid number (e.g., 0, 1, 2.5)."
+                    )
+                    st.session_state.messages.append({"role": "assistant", "content": msg})
+                    st.rerun()
 
         # LOCATION VALIDATION
         if st.session_state.current_q == 5:
-            locations = [loc.strip() for loc in user_input.split(',') if loc.strip()]
+            # Show spinner immediately
+            with st.spinner("✨ TalentScout is reviewing your response..."):
+                time.sleep(1.5)  # Delay for spinner visibility
+                
+                locations = [loc.strip() for loc in user_input.split(',') if loc.strip()]
+                
+                valid_locations = []
+                invalid_locations = []
+                for loc in locations:
+                    is_valid = (
+                        len(loc) >= 3
+                        and re.search(r"[a-zA-Z]", loc)
+                        and re.search(r"[aeiouAEIOU]", loc)
+                        and re.fullmatch(r"[A-Za-z ,.-]+", loc)
+                        and len(loc.split()) <= 4
+                        and not re.search(r"(.)\1{3,}", loc)
+                        and sum(c.isalpha() for c in loc) >= len(loc) * 0.6
+                    )
+                    if is_valid:
+                        valid_locations.append(loc)
+                    else:
+                        invalid_locations.append(loc)
+                
+                if invalid_locations:
+                    msg = (
+                        f"The following locations appear invalid: <b>{', '.join(invalid_locations)}</b><br><br>"
+                        "Please enter valid city or place names (e.g., Bangalore, New York, San Francisco). 📍"
+                    )
+                    st.session_state.messages.append({"role": "assistant", "content": msg})
+                    st.rerun()
             
-            valid_locations = []
-            invalid_locations = []
-            for loc in locations:
-                is_valid = (
-                    len(loc) >= 3
-                    and re.search(r"[a-zA-Z]", loc)
-                    and re.search(r"[aeiouAEIOU]", loc)
-                    and re.fullmatch(r"[A-Za-z ,.-]+", loc)
-                    and len(loc.split()) <= 4
-                    and not re.search(r"(.)\1{3,}", loc)
-                    and sum(c.isalpha() for c in loc) >= len(loc) * 0.6
-                )
-                if is_valid:
-                    valid_locations.append(loc)
-                else:
-                    invalid_locations.append(loc)
-            
-            if invalid_locations:
-                msg = (
-                    f"The following locations appear invalid: <b>{', '.join(invalid_locations)}</b><br><br>"
-                    "Please enter valid city or place names (e.g., Bangalore, New York, San Francisco). 📍"
-                )
-                st.session_state.messages.append({"role": "assistant", "content": msg})
-                st.rerun()
-            
+            # This code should be OUTSIDE the spinner - only validation messages should be inside
             st.session_state.collected_locations.extend(valid_locations)
             st.session_state.collected_locations = list(dict.fromkeys(st.session_state.collected_locations))
             
@@ -1597,8 +1652,8 @@ if st.session_state.pending_user_input is not None:
         # Save the answer directly (email is now saved in its validation block)
         if st.session_state.current_q != 1:
             st.session_state.answers[question] = user_input
-
-        time.sleep(0.2)
+        
+        # No need for time.sleep here anymore - spinner handles it
 
         ACK_MAP = {
             0: lambda val: f"Nice to meet you, <b>{val}</b>! Let's continue. ✨",
@@ -1635,10 +1690,9 @@ if st.session_state.pending_user_input is not None:
                 "</div>"
             )
 
-        # Only show spinner for other questions (not email/phone which have their own)
-        if st.session_state.current_q not in [1, 2]:
-            with st.spinner("✨ TalentScout is reviewing your response..."):
-                time.sleep(2.0)
+        # Show spinner for valid responses (all validations now have their own spinners for invalid cases)
+        with st.spinner("✨ TalentScout is reviewing your response..."):
+            time.sleep(2.0)
 
         st.session_state.messages.append({"role": "assistant", "content": response})
         st.rerun()
@@ -1677,101 +1731,112 @@ if st.session_state.pending_user_input is not None:
         if user_input.strip().lower() in skip_inputs:
             st.session_state.tech_q_count += 1
             
+            with st.spinner("⏳ Loading next question..."):
+                # Submit answer
+                backend_submit_answer(
+                    st.session_state.interview_id,
+                    st.session_state.current_tech_question,
+                    user_input
+                )
+                
+                # Small delay to show spinner
+                time.sleep(2)
+            
             # Check if this was the last question
             if st.session_state.tech_q_count >= 5:
-                with st.spinner("⏳ Processing your response..."):
-                    backend_submit_answer(
-                        st.session_state.interview_id,
-                        st.session_state.current_tech_question,
-                        user_input
-                    )
+                # Wait for backend to mark as completed
+                max_attempts = 30
+                for attempt in range(max_attempts):
+                    time.sleep(1)
+                    res = requests.get(
+                        f"{BACKEND_URL}/next-question/{st.session_state.interview_id}",
+                        timeout=10
+                    ).json()
                     
-                    # Wait for completion
-                    while True:
-                        time.sleep(1)
-                        res = requests.get(
-                            f"{BACKEND_URL}/next-question/{st.session_state.interview_id}",
-                            timeout=120
-                        ).json()
-                        
-                        if res.get("completed"):
-                            break
+                    if res.get("completed"):
+                        end_msg = (
+                            "<div class='assistant-box'>"
+                            "Thank you. This concludes the technical interview. ✅<br><br>"
+                            "Our team will review your responses and get back to you. 📧"
+                            "</div>"
+                        )
+                        st.session_state.messages.append({"role": "assistant", "content": end_msg})
+                        st.session_state.input_locked = False
+                        st.session_state.stage = "completed"
+                        st.rerun()
                 
-                end_msg = (
-                    "<div class='assistant-box'>"
-                    "Thank you. This concludes the technical interview. ✅<br><br>"
-                    "Our team will review your responses and get back to you. 📧"
-                    "</div>"
-                )
-                st.session_state.messages.append({"role": "assistant", "content": end_msg})
-                st.session_state.input_locked = False
+                # Fallback if not completed after 30 seconds
                 st.session_state.stage = "completed"
                 st.rerun()
             
             # Not the last question - get next question
-            with st.spinner("⏳ Loading next question..."):
-                backend_submit_answer(
-                    st.session_state.interview_id,
-                    st.session_state.current_tech_question,
-                    user_input
-                )
+            max_attempts = 30
+            for attempt in range(max_attempts):
+                time.sleep(1)
+                res = requests.get(
+                    f"{BACKEND_URL}/next-question/{st.session_state.interview_id}",
+                    timeout=10
+                ).json()
                 
-                while True:
-                    time.sleep(2)
-                    res = requests.get(
-                        f"{BACKEND_URL}/next-question/{st.session_state.interview_id}",
-                        timeout=120
-                    ).json()
+                if "question" in res:
+                    st.session_state.current_tech_question = res["question"]
                     
-                    if "question" in res:
-                        st.session_state.current_tech_question = res["question"]
-                        break
+                    # Varied skip acknowledgements
+                    import random
+                    skip_acknowledgements = [
+                        "It's ok! Let's move on to the next question. ⏭️",
+                        "No problem! Let's explore a different area. 🔄",
+                        "That's alright! Moving forward to the next one. ➡️",
+                        "Understood! Let's try a different question. 🎯",
+                        "No worries! Let me ask you something else. 💫",
+                        "That's fine! Let's continue with another topic. 📋"
+                    ]
+                    
+                    skip_msg = random.choice(skip_acknowledgements)
 
-            # Varied skip acknowledgements
-            import random
-            skip_acknowledgements = [
-                "It's ok! Let's move on to the next question. ⏭️",
-                "No problem! Let's explore a different area. 🔄",
-                "That's alright! Moving forward to the next one. ➡️",
-                "Understood! Let's try a different question. 🎯",
-                "No worries! Let me ask you something else. 💫",
-                "That's fine! Let's continue with another topic. 📋"
-            ]
-            
-            skip_msg = random.choice(skip_acknowledgements)
+                    msg = (
+                        f"<div class='assistant-box'>{skip_msg}</div>\n\n"
+                        f"<div class='question-box'>{st.session_state.current_tech_question}</div>"
+                    )
 
-            msg = (
-                f"<div class='assistant-box'>{skip_msg}</div>\n\n"
-                f"<div class='question-box'>{st.session_state.current_tech_question}</div>"
-            )
-
-            st.session_state.messages.append({"role": "assistant", "content": msg})
-            st.session_state.input_locked = False
-            st.rerun()
+                    st.session_state.messages.append({"role": "assistant", "content": msg})
+                    st.session_state.input_locked = False
+                    st.rerun()
 
         # EVALUATE ANSWER
         st.session_state.tech_q_count += 1
         
+        with st.spinner("⏳ Saving your answer..."):
+            # Submit answer
+            backend_submit_answer(
+                st.session_state.interview_id,
+                st.session_state.current_tech_question,
+                user_input
+            )
+            time.sleep(2)
+        
         # Check if this was the last question
         if st.session_state.tech_q_count >= 5:
-            with st.spinner("⏳ Please wait, your answer is being saved..."):
-                backend_submit_answer(
-                    st.session_state.interview_id,
-                    st.session_state.current_tech_question,
-                    user_input
-                )
-                time.sleep(3)
+            with st.spinner("⏳ Finalizing your interview..."):
+                # Wait for backend to confirm completion
+                completed = False
+                for attempt in range(15):  # Reduced from 30 to 15
+                    time.sleep(2)
+                    try:
+                        res = requests.get(
+                            f"{BACKEND_URL}/next-question/{st.session_state.interview_id}",
+                            timeout=10
+                        ).json()
+                        
+                        if res.get("completed"):
+                            completed = True
+                            print(f"✅ Backend confirmed completion after {(attempt+1)*2} seconds")
+                            break
+                    except Exception as e:
+                        print(f"⚠️ Completion check error: {e}")
                 
-                # Wait for completion confirmation
-                while True:
-                    time.sleep(1)
-                    res = requests.get(
-                        f"{BACKEND_URL}/next-question/{st.session_state.interview_id}",
-                        timeout=120
-                    ).json()
-                    
-                    if res.get("completed"):
-                        break
+                if not completed:
+                    print("⚠️ Forcing completion after timeout")
             
             end_msg = (
                 "<div class='assistant-box'>"
@@ -1785,48 +1850,52 @@ if st.session_state.pending_user_input is not None:
             st.rerun()
         
         # Not the last question - get next question
-        with st.spinner("⏳ Please wait, your answer is being saved..."):
-            backend_submit_answer(
-                st.session_state.interview_id,
-                st.session_state.current_tech_question,
-                user_input
-            )
-            time.sleep(6.0)
-
-        with st.spinner("✅ Answer saved, next question is being loaded..."):
-            while True:
+        with st.spinner("✅ Answer saved, loading next question..."):
+            next_question = None
+            
+            for attempt in range(20):  # Reduced from 30 to 20
                 time.sleep(2)
-                res = requests.get(
-                    f"{BACKEND_URL}/next-question/{st.session_state.interview_id}",
-                    timeout=120
-                ).json()
+                try:
+                    res = requests.get(
+                        f"{BACKEND_URL}/next-question/{st.session_state.interview_id}",
+                        timeout=10
+                    ).json()
+                    
+                    if "question" in res and res["question"]:
+                        next_question = res["question"]
+                        print(f"✅ Next question received after {(attempt+1)*2} seconds")
+                        break
+                        
+                    print(f"🔍 Attempt {attempt+1}: Status = {res.get('status', 'unknown')}")
+                    
+                except Exception as e:
+                    print(f"❌ Error on attempt {attempt+1}: {e}")
+        
+        if next_question:
+            st.session_state.current_tech_question = next_question
                 
-                if "question" in res:
-                    st.session_state.current_tech_question = res["question"]
-                    
-                    # Varied acknowledgements - randomly selected
-                    import random
-                    acknowledgements = [
-                        "Thanks for sharing your thoughts. I appreciate you walking me through your reasoning. 🤔",
-                        "That's an interesting approach! Let me ask you something related to what you just mentioned. 💡",
-                        "I see where you're going with that. Building on your answer, let's explore this further. 🔍",
-                        "Great! Your explanation gives me a good sense of your understanding. Let's continue. ✨",
-                        "Thank you for that detailed response. Let me follow up with another question. 📝",
-                        "I appreciate your perspective on this. Now, let's move to the next scenario. 🎯",
-                        "Interesting! Based on what you shared, here's a related question. 🚀",
-                        "Thanks for walking me through that. Let's explore another aspect of your expertise. 💼",
-                        "That makes sense. Let me ask you about something connected to your answer. 🔗",
-                        "Good! I can see your thought process. Let's continue with the next question. ⚡"
-                    ]
-                    
-                    feedback = random.choice(acknowledgements)
+            # Varied acknowledgements - randomly selected
+            import random
+            acknowledgements = [
+                "Thanks for sharing your thoughts. I appreciate you walking me through your reasoning. 🤔",
+                "That's an interesting approach! Let me ask you something related to what you just mentioned. 💡",
+                "I see where you're going with that. Building on your answer, let's explore this further. 🔍",
+                "Great! Your explanation gives me a good sense of your understanding. Let's continue. ✨",
+                "Thank you for that detailed response. Let me follow up with another question. 📝",
+                "I appreciate your perspective on this. Now, let's move to the next scenario. 🎯",
+                "Interesting! Based on what you shared, here's a related question. 🚀",
+                "Thanks for walking me through that. Let's explore another aspect of your expertise. 💼",
+                "That makes sense. Let me ask you about something connected to your answer. 🔗",
+                "Good! I can see your thought process. Let's continue with the next question. ⚡"
+            ]
+            
+            feedback = random.choice(acknowledgements)
 
-                    combined = (
-                        f"<div class='assistant-box'>{feedback}</div>\n\n"
-                        f"<div class='question-box'>{st.session_state.current_tech_question}</div>"
-                    )
+            combined = (
+                f"<div class='assistant-box'>{feedback}</div>\n\n"
+                f"<div class='question-box'>{st.session_state.current_tech_question}</div>"
+            )
 
-                    st.session_state.messages.append({"role": "assistant", "content": combined})
-                    st.session_state.input_locked = False
-                    break
-        st.rerun()
+            st.session_state.messages.append({"role": "assistant", "content": combined})
+            st.session_state.input_locked = False
+            st.rerun()
