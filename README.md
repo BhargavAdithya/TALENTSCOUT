@@ -1,4 +1,8 @@
-# 🚀 TalentScout - AI-Powered Technical Interview Platform
+<div align="center">
+
+# 🚀 TalentScout
+
+### AI-Powered Technical Interview Platform
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Now-blue?style=for-the-badge&logo=render)](https://talentscout-frontend.onrender.com)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
@@ -6,29 +10,11 @@
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://postgresql.org)
 
-> **An intelligent, AI-driven technical interview platform that conducts adaptive technical screenings with real-time monitoring, automated evaluation, and comprehensive candidate assessment.**
+**An intelligent, AI-driven technical interview platform that conducts adaptive technical screenings with real-time monitoring, automated evaluation, and comprehensive candidate assessment.**
 
----
+Try it now: **https://talentscout-frontend.onrender.com**
 
-## 📋 Table of Contents
-
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Live Demo](#-live-demo)
-- [Technology Stack](#-technology-stack)
-- [Architecture](#-architecture)
-- [Getting Started](#-getting-started)
-- [Project Structure](#-project-structure)
-- [Environment Variables](#-environment-variables)
-- [API Endpoints](#-api-endpoints)
-- [Security Features](#-security-features)
-- [Database Schema](#-database-schema)
-- [AI Integration](#-ai-integration)
-- [Deployment](#-deployment)
-- [Screenshots](#-screenshots)
-- [Contributing](#-contributing)
-- [License](#-license)
-- [Contact](#-contact)
+</div>
 
 ---
 
@@ -65,7 +51,6 @@
 - **Keyboard Restrictions**: Disabled shortcuts (Ctrl+C, Ctrl+V, F12, Alt+Tab, etc.)
 - **Context Menu Blocking**: Right-click and inspect element disabled
 - **Violation Tracking**: 10-strike policy - automatic termination on 10th violation
-- **Tab Switch Detection**: Monitors and logs any attempt to leave the interview
 - **Duplicate Prevention**: Email/phone validation to prevent multiple attempts (3-strike policy)
 
 ### 📊 **Evaluation & Analytics**
@@ -86,48 +71,6 @@
 - **Progress Tracking**: Visual indicators for information gathering and technical assessment
 - **Accessibility**: Keyboard navigation in input fields, clear visual hierarchy
 - **Mobile Warning**: Alerts users if accessing from non-desktop devices
-
-### 📝 **Candidate Information Collection**
-- **Comprehensive Profile**:
-  - Full name validation (first + last name required)
-  - Email validation (RFC-compliant regex with duplicate checking)
-  - Phone number validation (10-15 digits, international format supported)
-  - Experience in years (0-70, decimal values accepted)
-  - Position/role applying for
-  - Preferred job locations (minimum 3 required)
-  - Tech stack (languages, frameworks, databases, tools)
-- **Validation Feedback**: Real-time validation with helpful error messages
-
-### 🔄 **Interview Flow Management**
-- **Question Types**:
-  - Initial question based on experience and tech stack
-  - Follow-up questions based on previous answers
-  - New topic questions for coverage diversity
-  - Skip support ("PASS" keyword)
-- **State Management**: Robust session handling across page reruns
-- **Completion Detection**: Automatic interview conclusion after 5 questions
-- **Redirect Flow**: Smooth transition to completion page with 5-second countdown
-
----
-
-## 🌐 Live Demo
-
-**Try it now:** [https://talentscout-frontend.onrender.com](https://talentscout-frontend.onrender.com)
-
-### Sample Interview Flow:
-1. Grant camera and microphone permissions
-2. Enter fullscreen mode
-3. Provide candidate information (7 questions)
-4. Press "OK" to begin technical interview
-5. Answer 5 technical questions (3 minutes each)
-6. View completion screen and exit
-
-### Test Credentials:
-- **No login required** - Direct access to interview
-- **Sample Tech Stack**: "Python, Django, PostgreSQL, React, AWS"
-- **Sample Position**: "Full Stack Developer"
-
-> **Note**: The demo uses free-tier hosting on Render, so initial load may take 30-60 seconds (cold start).
 
 ---
 
@@ -176,30 +119,46 @@
 
 ## 🏗️ Architecture
 
+<div align="center">
+
+```mermaid
+graph TB
+    subgraph "Frontend Layer"
+        A[Landing Page<br/>Permissions & Setup]
+        B[Interview Flow<br/>Main Interface]
+        C[Completion Page<br/>Results]
+        A -->|Start Interview| B
+        B -->|Complete| C
+    end
+    
+    subgraph "API Layer"
+        D[FastAPI Backend<br/>REST Endpoints]
+        E[Business Logic<br/>Interview Management]
+    end
+    
+    subgraph "Data Layer"
+        F[(PostgreSQL<br/>Database)]
+        G[Groq API<br/>LLM Integration]
+        H[(Redis Cache<br/>Session Data)]
+    end
+    
+    B <-->|HTTP Requests| D
+    D <--> E
+    E <-->|Store Data| F
+    E <-->|Generate Questions| G
+    E <-->|Cache State| H
+    
+    style A fill:#667eea,stroke:#764ba2,stroke-width:2px,color:#fff
+    style B fill:#667eea,stroke:#764ba2,stroke-width:2px,color:#fff
+    style C fill:#667eea,stroke:#764ba2,stroke-width:2px,color:#fff
+    style D fill:#f093fb,stroke:#f5576c,stroke-width:2px,color:#fff
+    style E fill:#f093fb,stroke:#f5576c,stroke-width:2px,color:#fff
+    style F fill:#4facfe,stroke:#00f2fe,stroke-width:2px,color:#fff
+    style G fill:#43e97b,stroke:#38f9d7,stroke-width:2px,color:#fff
+    style H fill:#fa709a,stroke:#fee140,stroke-width:2px,color:#fff
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Frontend (Streamlit)                 │
-│  ┌─────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │  app.py     │  │ interview.py │  │ completion.py│      │
-│  │ (Landing)   │→ │ (Main Flow)  │→ │ (End Screen) │      │
-│  └─────────────┘  └──────────────┘  └──────────────┘      │
-│         │                  │                  │              │
-│         └──────────────────┼──────────────────┘              │
-│                           │                                  │
-└───────────────────────────┼──────────────────────────────────┘
-                            │
-                    ┌───────▼────────┐
-                    │   FastAPI      │
-                    │   Backend      │
-                    └───────┬────────┘
-                            │
-            ┌───────────────┼───────────────┐
-            │               │               │
-    ┌───────▼──────┐ ┌─────▼──────┐ ┌─────▼──────┐
-    │  PostgreSQL  │ │  Groq API  │ │   Redis    │
-    │  (Database)  │ │    (LLM)   │ │  (Cache)   │
-    └──────────────┘ └────────────┘ └────────────┘
-```
+
+</div>
 
 ### Request Flow:
 1. **Frontend** → User interacts with Streamlit UI
@@ -221,95 +180,33 @@
 - **Git** 2.40 or higher
 - **Modern browser** (Chrome 90+, Firefox 88+, Safari 14+)
 
-### Installation
+### Quick Start
 
-#### 1. Clone the Repository
-```bash
-git clone https://github.com/yourusername/talentscout.git
-cd talentscout
-```
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/talentscout.git
+   cd talentscout
+   ```
 
-#### 2. Backend Setup
-```bash
-cd backend
+2. **Configure environment variables**
+   - Set up backend `.env` with database and Groq API credentials
+   - Set up frontend `.env` with backend URL
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+3. **Run the application**
+   ```bash
+   # Backend
+   cd backend
+   uvicorn main:app --reload
+   
+   # Frontend (in another terminal)
+   cd frontend
+   streamlit run app.py
+   ```
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Create .env file
-cp .env.example .env
-# Edit .env with your credentials
-
-# Initialize database
-python -c "from database import engine; from models import Base; Base.metadata.create_all(bind=engine)"
-
-# Run backend server
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-#### 3. Frontend Setup
-```bash
-cd ../frontend
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Create .env file
-cp .env.example .env
-# Edit .env with backend URL
-
-# Run frontend
-streamlit run app.py
-```
-
-#### 4. Access the Application
-- **Frontend**: http://localhost:8501
-- **Backend API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
-
----
-
-## 📁 Project Structure
-
-```
-talentscout/
-│
-├── backend/                    # FastAPI backend
-│   ├── __pycache__/           # Python cache
-│   ├── venv/                  # Virtual environment
-│   ├── .env                   # Environment variables
-│   ├── database.py            # Database connection & session
-│   ├── interview.py           # Interview logic (difficulty)
-│   ├── llm.py                 # LLM integration (Groq API)
-│   ├── main.py                # FastAPI app & endpoints
-│   ├── models.py              # SQLAlchemy ORM models
-│   ├── schemas.py             # Pydantic schemas
-│   └── requirements.txt       # Python dependencies
-│
-├── frontend/                   # Streamlit frontend
-│   ├── pages/                 # Streamlit pages
-│   │   ├── completion.py      # Interview completion page
-│   │   ├── interview.py       # Main interview flow
-│   │   └── termination.py     # Termination page (violations)
-│   ├── __pycache__/           # Python cache
-│   ├── venv/                  # Virtual environment
-│   ├── .env                   # Environment variables
-│   ├── app.py                 # Landing page (permissions)
-│   ├── styles.py              # CSS styles
-│   ├── utils.py               # Helper functions
-│   └── requirements.txt       # Python dependencies
-│
-├── .gitignore                 # Git ignore rules
-└── README.md                  # This file
-```
+4. **Access the platform**
+   - Frontend: http://localhost:8501
+   - Backend API: http://localhost:8000
+   - API Docs: http://localhost:8000/docs
 
 ---
 
@@ -339,85 +236,6 @@ BACKEND_URL=http://localhost:8000
 
 ---
 
-## 🔌 API Endpoints
-
-### Health Check
-```http
-GET /
-```
-Returns backend status and active interview count.
-
-### Start Interview
-```http
-POST /start
-Content-Type: application/json
-
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "phone": "1234567890",
-  "experience": 3.5,
-  "position": "Full Stack Developer",
-  "location": "San Francisco, New York, Remote",
-  "tech_stack": "Python, Django, React, PostgreSQL, AWS"
-}
-```
-
-### Submit Answer
-```http
-POST /answer
-Content-Type: application/json
-
-{
-  "interview_id": 1,
-  "question": "Explain React hooks",
-  "answer": "React hooks are functions that..."
-}
-```
-
-### Get Next Question
-```http
-GET /next-question/{interview_id}
-```
-
-### Get Timer
-```http
-GET /timer/{interview_id}
-```
-
-### Record Violation
-```http
-POST /violation/{interview_id}
-Content-Type: application/json
-
-{
-  "type": "ctrl_c"
-}
-```
-
-### Check Duplicate
-```http
-POST /check-duplicate
-Content-Type: application/json
-
-{
-  "email": "test@example.com",
-  "phone": "1234567890"
-}
-```
-
-### Terminate Interview
-```http
-POST /terminate/{interview_id}
-```
-
-### Get Interview Status
-```http
-GET /status/{interview_id}
-```
-
----
-
 ## 🔒 Security Features
 
 ### Authentication & Authorization
@@ -431,7 +249,6 @@ GET /status/{interview_id}
 | **Copy/Paste** | Disabled via JavaScript + event blocking | ✅ Tracked |
 | **Right-click** | Context menu completely disabled | ✅ Tracked |
 | **Keyboard Shortcuts** | Ctrl+C/V/X, F12, Ctrl+Shift+I blocked | ✅ Tracked |
-| **Tab Switching** | Detected but not blocked (privacy) | ❌ Not tracked |
 | **Fullscreen Exit** | 3 exits = automatic termination | ✅ Separate tracking |
 | **Text Selection** | Disabled except in input fields | ✅ Tracked |
 | **DevTools** | F12, Ctrl+Shift+I/J/U blocked | ✅ Tracked |
@@ -446,46 +263,10 @@ GET /status/{interview_id}
 
 ## 💾 Database Schema
 
-### Candidates Table
-```sql
-CREATE TABLE candidates (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(150) UNIQUE NOT NULL,
-    phone VARCHAR(20) UNIQUE NOT NULL,
-    experience FLOAT NOT NULL,
-    position VARCHAR(100) NOT NULL,
-    location VARCHAR(200) NOT NULL,
-    tech_stack TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-### Interviews Table
-```sql
-CREATE TABLE interviews (
-    id SERIAL PRIMARY KEY,
-    candidate_id INTEGER REFERENCES candidates(id),
-    started_at TIMESTAMP DEFAULT NOW(),
-    ended_at TIMESTAMP,
-    status VARCHAR(50) NOT NULL,
-    candidate_rating FLOAT,
-    violations INTEGER DEFAULT 0
-);
-```
-
-### Questions Table
-```sql
-CREATE TABLE questions (
-    id SERIAL PRIMARY KEY,
-    interview_id INTEGER REFERENCES interviews(id),
-    question_text TEXT NOT NULL,
-    answer_text TEXT NOT NULL,
-    difficulty FLOAT NOT NULL,
-    score FLOAT,
-    answered_at TIMESTAMP DEFAULT NOW()
-);
-```
+### Tables
+- **Candidates** - Stores candidate profile information
+- **Interviews** - Tracks interview sessions and status
+- **Questions** - Records questions asked and answers given
 
 ### Relationships
 - **One-to-Many**: Candidate → Interviews
@@ -500,24 +281,6 @@ CREATE TABLE questions (
 User Input → LLM Prompt Engineering → Groq API → Question Extraction → Validation
 ```
 
-### Prompt Strategy
-- **Context-aware**: Includes experience, tech stack, position
-- **Adaptive**: References previous answers for follow-ups
-- **Scenario-based**: Focuses on real-world problems, not theory
-- **Difficulty scaling**: Explicit difficulty instructions (1-5)
-- **Topic tracking**: Ensures coverage across tech stack
-
-### Evaluation Criteria
-```python
-{
-    "technical_accuracy": 30%,      # Is it correct?
-    "depth_of_understanding": 25%,  # Surface vs deep knowledge?
-    "clarity": 20%,                 # Well-explained?
-    "practical_application": 15%,   # Shows experience?
-    "completeness": 10%             # Addresses all aspects?
-}
-```
-
 ### Groq Configuration
 - **Model**: `llama-3.3-70b-versatile`
 - **Temperature**: 0.7 (balanced creativity/consistency)
@@ -526,207 +289,51 @@ User Input → LLM Prompt Engineering → Groq API → Question Extraction → V
 
 ---
 
-## 🌍 Deployment
-
-### Frontend (Render)
-1. Connect GitHub repository
-2. **Build Command**: `pip install -r requirements.txt`
-3. **Start Command**: `streamlit run app.py --server.port=$PORT --server.address=0.0.0.0`
-4. **Environment Variables**: `BACKEND_URL`
-
-### Backend (Render)
-1. Connect GitHub repository
-2. **Build Command**: `pip install -r requirements.txt`
-3. **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-4. **Environment Variables**: `DATABASE_URL`, `GROQ_API_KEY`, `GROQ_API_URL`, `MODEL_NAME`
-
-### Database (Neon)
-1. Create new project at [neon.tech](https://neon.tech)
-2. Copy connection string
-3. Add to backend `DATABASE_URL` environment variable
-
-### Environment Setup (Production)
-```bash
-# Backend
-DATABASE_URL=postgresql://user:pass@hostname/dbname?sslmode=require
-GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxx
-GROQ_API_URL=https://api.groq.com/openai/v1/chat/completions
-MODEL_NAME=llama-3.3-70b-versatile
-
-# Frontend
-BACKEND_URL=https://your-backend.onrender.com
-```
-
----
-
-## 📸 Screenshots
-
-### Landing Page (Permissions)
-![Landing Page](https://via.placeholder.com/800x450/667eea/ffffff?text=Landing+Page+-+Grant+Permissions)
-
-### Candidate Information Collection
-![Information Collection](https://via.placeholder.com/800x450/667eea/ffffff?text=Candidate+Information+Form)
-
-### Technical Interview (Question Display)
-![Technical Interview](https://via.placeholder.com/800x450/667eea/ffffff?text=Technical+Interview+-+Live+Question)
-
-### Live Monitoring (Camera + Timer)
-![Live Monitoring](https://via.placeholder.com/800x450/667eea/ffffff?text=Camera+Monitor+%26+Timer)
-
-### Completion Screen
-![Completion](https://via.placeholder.com/800x450/667eea/ffffff?text=Interview+Completed)
-
----
-
 ## 🤝 Contributing
 
-We welcome contributions! Here's how you can help:
+We welcome contributions from the community! Whether you're fixing bugs, improving documentation, or adding new features, your help is appreciated.
 
-### 1. Fork the Repository
-```bash
-git clone https://github.com/yourusername/talentscout.git
-cd talentscout
-git checkout -b feature/your-feature-name
-```
+### How to Contribute
 
-### 2. Make Changes
-- Follow PEP 8 style guide for Python
-- Add comments for complex logic
-- Update documentation if needed
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-### 3. Test Thoroughly
-```bash
-# Backend tests
-pytest backend/
-
-# Frontend manual testing
-streamlit run frontend/app.py
-```
-
-### 4. Submit Pull Request
-- Clear title and description
-- Reference any related issues
-- Include screenshots if UI changes
-
-### Areas for Contribution
-- [ ] Add support for multiple languages
-- [ ] Implement code execution for programming questions
-- [ ] Add video recording option
-- [ ] Create admin dashboard for recruiters
-- [ ] Add email notifications
-- [ ] Implement resume parsing
-- [ ] Add support for whiteboard questions
-- [ ] Create mobile app version
+### Ideas for Contribution
+- Multi-language support
+- Code execution environment for programming questions
+- Admin dashboard for recruiters
+- Resume parsing integration
+- Email notifications
+- Mobile application
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License**.
-
-```
-MIT License
-
-Copyright (c) 2025 TalentScout
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+This project is licensed under the **MIT License** - see the LICENSE file for details.
 
 ---
 
 ## 📞 Contact
 
 ### Project Maintainer
-- **Name**: Your Name
-- **Email**: your.email@example.com
-- **LinkedIn**: [linkedin.com/in/yourprofile](https://linkedin.com/in/yourprofile)
-- **GitHub**: [@yourusername](https://github.com/yourusername)
+- **Name**: Chandu Bhargav Adithya
+- **LinkedIn**: [linkedin.com/in/yourprofile](https://www.linkedin.com/in/chandu-bhargav-adithya-5752792a0)
+- **GitHub**: [@yourusername](https://github.com/BhargavAdithya)
 
 ### Support
-- **Issues**: [GitHub Issues](https://github.com/yourusername/talentscout/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/talentscout/discussions)
-- **Email**: support@talentscout.dev
-
----
-
-## 🙏 Acknowledgments
-
-- **Groq** - For providing fast, reliable LLM inference
-- **Streamlit** - For the amazing web framework
-- **FastAPI** - For the high-performance backend framework
-- **Render** - For seamless deployment
-- **Neon** - For serverless PostgreSQL
-- **Open Source Community** - For inspiration and support
-
----
-
-## 🗺️ Roadmap
-
-### Q1 2025
-- [x] Core interview functionality
-- [x] AI-powered question generation
-- [x] Real-time monitoring
-- [ ] Admin dashboard
-- [ ] Email notifications
-
-### Q2 2025
-- [ ] Video recording
-- [ ] Code execution environment
-- [ ] Multi-language support
-- [ ] Resume parsing
-- [ ] Interview analytics
-
-### Q3 2025
-- [ ] Mobile app (React Native)
-- [ ] Integration with ATS systems
-- [ ] Advanced proctoring (eye tracking)
-- [ ] Team collaboration features
-
-### Q4 2025
-- [ ] Enterprise features
-- [ ] Custom branding
-- [ ] API for third-party integrations
-- [ ] Machine learning for candidate matching
-
----
-
-## 📊 Project Statistics
-
-![GitHub stars](https://img.shields.io/github/stars/yourusername/talentscout?style=social)
-![GitHub forks](https://img.shields.io/github/forks/yourusername/talentscout?style=social)
-![GitHub issues](https://img.shields.io/github/issues/yourusername/talentscout)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/yourusername/talentscout)
-![GitHub last commit](https://img.shields.io/github/last-commit/yourusername/talentscout)
-![GitHub code size](https://img.shields.io/github/languages/code-size/yourusername/talentscout)
+- **Issues**: [GitHub Issues](https://github.com/BhargavAdithya/TALENTSCOUT/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/BhargavAdithya/TALENTSCOUT/discussions)
 
 ---
 
 <div align="center">
 
-### ⭐ Star this repo if you find it helpful!
+### Built with ❤️ for smarter hiring
 
-**Built with ❤️ by the TalentScout Team**
-
-[🌐 Live Demo](https://talentscout-frontend.onrender.com) • [📖 Documentation](https://docs.talentscout.dev) • [🐛 Report Bug](https://github.com/yourusername/talentscout/issues) • [✨ Request Feature](https://github.com/yourusername/talentscout/issues)
-
----
-
-© 2025 TalentScout. All rights reserved.
+[⬆ Back to Top](#-talentscout)
 
 </div>
