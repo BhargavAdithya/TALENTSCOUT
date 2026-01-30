@@ -94,9 +94,48 @@ def process_next_question(interview_id: int):
     
     print(f"📊 Question count after increment: {interview['question_count']}")
 
-    if interview["question_count"] > 5:  # Back to > 5
+    if interview["question_count"] > 5:
         interview["status"] = "completed"
         print(f"✅ Interview {interview_id} completed after {interview['question_count']} questions")
+        
+        # Calculate and save candidate rating
+        from llm import rate_candidate
+        from database import SessionLocal
+        from models import Interview
+        
+        db = SessionLocal()
+        
+        questions_data = [
+            {
+                "question": ans["question"],
+                "answer": ans["answer"],
+                "score": 0.0,
+                "difficulty": interview["difficulty"]
+            }
+            for ans in interview["answers"]
+        ]
+        
+        db_interview = db.query(Interview).filter(Interview.id == interview_id).first()
+        if db_interview and db_interview.questions:
+            for i, db_q in enumerate(db_interview.questions):
+                if i < len(questions_data):
+                    questions_data[i]["score"] = db_q.score if db_q.score else 0.0
+                    questions_data[i]["difficulty"] = db_q.difficulty
+        
+        candidate_rating = rate_candidate(interview["candidate_info"], questions_data)
+        
+        if db_interview:
+            db_interview.candidate_rating = candidate_rating
+            db_interview.ended_at = datetime.utcnow()
+            db_interview.status = "completed"
+            db.commit()
+        
+        db.close()
+        
+        print(f"⭐ Candidate rated: {candidate_rating}/5.0")
+        return  # EXIT FUNCTION - interview is complete
+    
+        print(f"➡️ Continuing to generate next question...")
         
         # Calculate candidate rating
         from llm import rate_candidate
@@ -226,6 +265,7 @@ def process_next_question(interview_id: int):
         print(f"   Question text: {next_q[:100]}...")
         print(f"   Status: {interview['status']}")
         print(f"   Question count: {interview['question_count']}")
+        print(f"🎉 process_next_question COMPLETED successfully for interview {interview_id}")
         
     except Exception as e:
         print(f"❌ Error generating next question: {e}")
@@ -250,13 +290,19 @@ def monitor_timer(interview_id: int):
         
         if remaining == 0:
             print(f"⏰ Timer expired for interview {interview_id}")
+            print(f"   Current question: {interview['current_question'][:100] if interview.get('current_question') else 'NONE'}...")
+            
+            # Save the current question BEFORE changing status
+            timed_out_question = interview.get("current_question", "")
+            
             interview["answers"].append({
-                "question": interview["current_question"],
+                "question": timed_out_question,
                 "answer": "[AUTO-SUBMITTED: TIME EXPIRED]",
                 "timestamp": datetime.utcnow()
             })
             
-            interview["status"] = "processing"  # Changed from "timeout" to "processing"
+            print(f"   Timeout answer appended, starting processing...")
+            interview["status"] = "processing"
             
             threading.Thread(
                 target=process_next_question,
