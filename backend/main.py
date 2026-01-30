@@ -87,7 +87,7 @@ def process_next_question(interview_id: int):
     interview["difficulty"] = next_difficulty(interview["difficulty"], passed)
     interview["question_count"] += 1
 
-    if interview["question_count"] > 5:
+    if interview["question_count"] >= 6:  # Changed from > 5 to >= 6
         interview["status"] = "completed"
         print(f"✅ Interview {interview_id} completed")
         
@@ -231,10 +231,11 @@ def monitor_timer(interview_id: int):
             print(f"⏰ Timer expired for interview {interview_id}")
             interview["answers"].append({
                 "question": interview["current_question"],
-                "answer": "[AUTO-SUBMITTED: TIME EXPIRED]"
+                "answer": "[AUTO-SUBMITTED: TIME EXPIRED]",
+                "timestamp": datetime.utcnow()
             })
             
-            interview["status"] = "timeout"
+            interview["status"] = "processing"  # Changed from "timeout" to "processing"
             
             threading.Thread(
                 target=process_next_question,
@@ -431,21 +432,25 @@ def get_next_question(interview_id: int):
         print(f"✅ Interview {interview_id} completed")
         return {"completed": True, "message": "Interview completed successfully"}
 
-    if interview["status"] in ["processing", "timeout"]:
+    if interview["status"] == "processing":
         return {"status": "processing", "message": "Processing your answer..."}
 
-    # Start timer for the new question
-    threading.Thread(
-        target=monitor_timer,
-        args=(interview_id,),
-        daemon=True
-    ).start()
+    # Ready to show question - start timer
+    if interview["status"] == "ready":
+        threading.Thread(
+            target=monitor_timer,
+            args=(interview_id,),
+            daemon=True
+        ).start()
 
-    return {
-        "question": interview["current_question"],
-        "question_number": interview["question_count"],
-        "total_questions": 5
-    }
+        return {
+            "question": interview["current_question"],
+            "question_number": interview["question_count"],
+            "total_questions": 5
+        }
+    
+    # Unknown status
+    return {"status": interview["status"], "message": "Processing..."}
 
 
 @app.get("/timer/{interview_id}")
