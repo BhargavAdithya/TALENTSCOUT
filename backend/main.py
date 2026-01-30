@@ -48,8 +48,13 @@ def process_next_question(interview_id: int):
     """Process the next question after evaluating the previous answer"""
     interview = INTERVIEWS.get(interview_id)
     if not interview:
+        print(f"❌ process_next_question: Interview {interview_id} not found")
         return
 
+    print(f"🔄 process_next_question: Starting for interview {interview_id}")
+    print(f"   Current status: {interview['status']}")
+    print(f"   Question count: {interview['question_count']}")
+    
     last = interview["answers"][-1]
     # Calculate time taken
     time_taken = int((datetime.utcnow() - last.get("timestamp", datetime.utcnow())).total_seconds())
@@ -86,10 +91,12 @@ def process_next_question(interview_id: int):
 
     interview["difficulty"] = next_difficulty(interview["difficulty"], passed)
     interview["question_count"] += 1
+    
+    print(f"📊 Question count after increment: {interview['question_count']}")
 
-    if interview["question_count"] >= 6:  # Changed from > 5 to >= 6
+    if interview["question_count"] > 5:  # Back to > 5
         interview["status"] = "completed"
-        print(f"✅ Interview {interview_id} completed")
+        print(f"✅ Interview {interview_id} completed after {interview['question_count']} questions")
         
         # Calculate candidate rating
         from llm import rate_candidate
@@ -134,32 +141,21 @@ def process_next_question(interview_id: int):
         return
 
     # Determine question type based on context and strategy
-    from llm import ask_followup_question, ask_new_topic_question
+    try:
+        from llm import ask_followup_question, ask_new_topic_question
 
-    # Check if answer was skipped (PASS) or timed out
-    was_skipped = last["answer"].lower().strip() in {
-        "pass", "skip", "idk", "i don't know", "don't know",
-        "no idea", "not sure", "n/a"
-    }
-    was_timeout = "[AUTO-SUBMITTED: TIME EXPIRED]" in last["answer"]
+        # Check if answer was skipped (PASS) or timed out
+        was_skipped = last["answer"].lower().strip() in {
+            "pass", "skip", "idk", "i don't know", "don't know",
+            "no idea", "not sure", "n/a"
+        }
+        was_timeout = "[AUTO-SUBMITTED: TIME EXPIRED]" in last["answer"]
 
-    # Decide question strategy
-    if was_skipped:
-        # User skipped - generate from new topic
-        next_q = ask_new_topic_question(
-            interview["tech_stack"],
-            interview["difficulty"],
-            interview["candidate_info"]["position"],
-            interview["candidate_info"]["experience"],
-            interview["covered_topics"],
-            interview["question_history"]
-        )
-        interview["last_question_type"] = "new_topic"
-    elif was_timeout:
-        # Timeout - 50% chance new topic, 50% followup
-        import random
-        if random.random() < 0.5 or interview["last_question_type"] == "followup":
-            # Generate new topic
+        print(f"   Generating next question (skipped={was_skipped}, timeout={was_timeout})")
+
+        # Decide question strategy
+        if was_skipped:
+            # User skipped - generate from new topic
             next_q = ask_new_topic_question(
                 interview["tech_stack"],
                 interview["difficulty"],
@@ -169,50 +165,75 @@ def process_next_question(interview_id: int):
                 interview["question_history"]
             )
             interview["last_question_type"] = "new_topic"
+        elif was_timeout:
+            # Timeout - 50% chance new topic, 50% followup
+            import random
+            if random.random() < 0.5 or interview["last_question_type"] == "followup":
+                # Generate new topic
+                next_q = ask_new_topic_question(
+                    interview["tech_stack"],
+                    interview["difficulty"],
+                    interview["candidate_info"]["position"],
+                    interview["candidate_info"]["experience"],
+                    interview["covered_topics"],
+                    interview["question_history"]
+                )
+                interview["last_question_type"] = "new_topic"
+            else:
+                # Continue with followup
+                next_q = ask_followup_question(
+                    interview["tech_stack"],
+                    interview["difficulty"],
+                    interview["candidate_info"]["position"],
+                    interview["candidate_info"]["experience"],
+                    last["question"],
+                    last["answer"],
+                    interview["covered_topics"]
+                )
+                interview["last_question_type"] = "followup"
         else:
-            # Continue with followup
-            next_q = ask_followup_question(
-                interview["tech_stack"],
-                interview["difficulty"],
-                interview["candidate_info"]["position"],
-                interview["candidate_info"]["experience"],
-                last["question"],
-                last["answer"],
-                interview["covered_topics"]
-            )
-            interview["last_question_type"] = "followup"
-    else:
-        # Normal answer - alternate between followup and new topic
-        if interview["last_question_type"] == "followup" or interview["question_count"] % 2 == 0:
-            # Generate new topic every alternate question
-            next_q = ask_new_topic_question(
-                interview["tech_stack"],
-                interview["difficulty"],
-                interview["candidate_info"]["position"],
-                interview["candidate_info"]["experience"],
-                interview["covered_topics"],
-                interview["question_history"]
-            )
-            interview["last_question_type"] = "new_topic"
-        else:
-            # Followup question
-            next_q = ask_followup_question(
-                interview["tech_stack"],
-                interview["difficulty"],
-                interview["candidate_info"]["position"],
-                interview["candidate_info"]["experience"],
-                last["question"],
-                last["answer"],
-                interview["covered_topics"]
-            )
-            interview["last_question_type"] = "followup"
+            # Normal answer - alternate between followup and new topic
+            if interview["last_question_type"] == "followup" or interview["question_count"] % 2 == 0:
+                # Generate new topic every alternate question
+                next_q = ask_new_topic_question(
+                    interview["tech_stack"],
+                    interview["difficulty"],
+                    interview["candidate_info"]["position"],
+                    interview["candidate_info"]["experience"],
+                    interview["covered_topics"],
+                    interview["question_history"]
+                )
+                interview["last_question_type"] = "new_topic"
+            else:
+                # Followup question
+                next_q = ask_followup_question(
+                    interview["tech_stack"],
+                    interview["difficulty"],
+                    interview["candidate_info"]["position"],
+                    interview["candidate_info"]["experience"],
+                    last["question"],
+                    last["answer"],
+                    interview["covered_topics"]
+                )
+                interview["last_question_type"] = "followup"
 
-    # Store question in history
-    interview["question_history"].append(next_q)
-    interview["current_question"] = next_q
-    interview["status"] = "ready"
-    interview["question_started_at"] = datetime.utcnow()
-    print(f"📝 Next question generated for interview {interview_id}")
+        # Store question in history
+        interview["question_history"].append(next_q)
+        interview["current_question"] = next_q
+        interview["status"] = "ready"
+        interview["question_started_at"] = datetime.utcnow()
+        print(f"✅ Next question ready for interview {interview_id}")
+        print(f"   Question text: {next_q[:100]}...")
+        print(f"   Status: {interview['status']}")
+        print(f"   Question count: {interview['question_count']}")
+        
+    except Exception as e:
+        print(f"❌ Error generating next question: {e}")
+        import traceback
+        traceback.print_exc()
+        # Mark as completed on error
+        interview["status"] = "completed"
+        print(f"⚠️ Marking interview {interview_id} as completed due to error")
 
 
 def monitor_timer(interview_id: int):
@@ -390,12 +411,14 @@ def submit_answer(data: AnswerRequest):
     if not interview:
         raise HTTPException(status_code=404, detail="Invalid interview ID")
 
-    if interview["status"] in ["processing", "timeout"]:
+    if interview["status"] in ["processing"]:
+        print(f"⚠️ Answer submission rejected - already processing")
         return {"status": "already_processing"}
 
     print(f"\n📝 Answer submitted for interview {data.interview_id}")
-    print(f"Question: {data.question[:80]}...")
-    print(f"Answer: {data.answer[:80]}...")
+    print(f"   Question: {data.question[:80]}...")
+    print(f"   Answer: {data.answer[:80]}...")
+    print(f"   Current status: {interview['status']}")
 
     interview["status"] = "processing"
 
@@ -410,6 +433,8 @@ def submit_answer(data: AnswerRequest):
         "time_taken": time_taken
     })
 
+    print(f"   Starting background processing...")
+    
     # Process next question in background
     threading.Thread(
         target=process_next_question,
@@ -419,7 +444,6 @@ def submit_answer(data: AnswerRequest):
 
     return {"status": "processing", "message": "Answer submitted successfully"}
 
-
 @app.get("/next-question/{interview_id}")
 def get_next_question(interview_id: int):
     """Get the next question after processing"""
@@ -428,15 +452,21 @@ def get_next_question(interview_id: int):
     if not interview:
         raise HTTPException(status_code=404, detail="Invalid interview ID")
 
-    if interview["status"] == "completed":
+    current_status = interview["status"]
+    print(f"🔍 /next-question called for {interview_id}, status: {current_status}, count: {interview['question_count']}")
+
+    if current_status == "completed":
         print(f"✅ Interview {interview_id} completed")
         return {"completed": True, "message": "Interview completed successfully"}
 
-    if interview["status"] == "processing":
+    if current_status == "processing":
+        print(f"⏳ Still processing interview {interview_id}")
         return {"status": "processing", "message": "Processing your answer..."}
 
     # Ready to show question - start timer
-    if interview["status"] == "ready":
+    if current_status == "ready":
+        print(f"✅ Returning question {interview['question_count']} for interview {interview_id}")
+        
         threading.Thread(
             target=monitor_timer,
             args=(interview_id,),
@@ -449,9 +479,9 @@ def get_next_question(interview_id: int):
             "total_questions": 5
         }
     
-    # Unknown status
-    return {"status": interview["status"], "message": "Processing..."}
-
+    # Unknown/unexpected status
+    print(f"⚠️ Unexpected status '{current_status}' for interview {interview_id}")
+    return {"status": current_status, "message": "Processing..."}
 
 @app.get("/timer/{interview_id}")
 def get_timer(interview_id: int):
