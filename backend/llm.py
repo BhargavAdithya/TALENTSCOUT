@@ -362,6 +362,8 @@ Consider the difficulty level when scoring:
     raw = re.sub(r'```json\s*|\s*```', '', raw).strip()
     
     try:
+        # Replace JavaScript boolean values with Python ones
+        raw = raw.replace('true', 'True').replace('false', 'False')
         result = eval(raw)  # Using eval for simple dict parsing
         score = float(result.get("score", 0.0))
         passed = result.get("passed", False)
