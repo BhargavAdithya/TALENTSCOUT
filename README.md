@@ -320,8 +320,7 @@ This project is licensed under the **MIT License** - see the LICENSE file for de
 
 ### Project Maintainer
 - **Name**: Chandu Bhargav Adithya
-- **LinkedIn**: [linkedin.com/in/yourprofile](https://www.linkedin.com/in/chandu-bhargav-adithya-5752792a0)
-- **GitHub**: [@yourusername](https://github.com/BhargavAdithya)
+- **LinkedIn**: [linkedin.com/in/BhargavAdithya](https://www.linkedin.com/in/chandu-bhargav-adithya-5752792a0)
 
 ### Support
 - **Issues**: [GitHub Issues](https://github.com/BhargavAdithya/TALENTSCOUT/issues)
