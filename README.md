@@ -288,28 +288,6 @@ User Input → LLM Prompt Engineering → Groq API → Question Extraction → V
 
 ---
 
-## 🤝 Contributing
-
-We welcome contributions from the community! Whether you're fixing bugs, improving documentation, or adding new features, your help is appreciated.
-
-### How to Contribute
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-### Ideas for Contribution
-- Multi-language support
-- Code execution environment for programming questions
-- Admin dashboard for recruiters
-- Resume parsing integration
-- Email notifications
-- Mobile application
-
----
-
 ## 📄 License
 
 This project is licensed under the **MIT License** - see the LICENSE file for details.
